@@ -11,7 +11,7 @@ const getMe = (req, res) => {
     }
 
     const profile = db.prepare(`
-      SELECT e.id, e.first_name, e.last_name,
+      SELECT e.id, e.first_name, e.last_name, e.avatar_url,
              COALESCE(NULLIF(TRIM(COALESCE(e.first_name, '') || ' ' || COALESCE(e.last_name, '')), ''), e.full_name, '') AS full_name,
              e.birth_date, e.gender, e.id_card, e.social_insurance_no, e.employee_type,
              e.phone, e.address, e.department, e.hire_date, e.status
@@ -49,11 +49,12 @@ const getMyShifts = (req, res) => {
 
     const shifts = db
       .prepare(`
-        SELECT s.*, c.company_name, b.branch_name, ct.contract_code
+        SELECT s.*, c.company_name, ct.contract_code,
+               st.code AS shift_code, st.name AS shift_name, st.check_in_time, st.check_out_time, st.work_pattern
         FROM shifts s
         LEFT JOIN partner_companies c ON c.id = s.company_id
-        LEFT JOIN partner_branches b ON b.id = s.branch_id
         LEFT JOIN contracts ct ON ct.id = s.contract_id
+        LEFT JOIN shift_templates st ON st.id = s.shift_template_id
         WHERE s.employee_id = ?
         ORDER BY s.shift_date DESC, s.id DESC
       `)
@@ -68,7 +69,9 @@ const getMyShifts = (req, res) => {
 const getAll = (req, res) => {
   try {
     const query = `
-      SELECT a.id, a.username, a.role, a.employee_id, a.can_manage_salary, a.created_at, a.is_active,
+      SELECT a.id, a.username, a.role, a.employee_id,
+             a.can_manage_salary, a.created_at, a.is_active,
+             e.avatar_url,
              ${NAME_SQL} AS full_name
       FROM accounts a
       LEFT JOIN employees e ON e.id = a.employee_id
@@ -245,3 +248,5 @@ module.exports = {
   resetPassword,
   remove
 };
+
+

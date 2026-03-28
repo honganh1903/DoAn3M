@@ -86,12 +86,39 @@ const partnerCompanies = [
   }
 ];
 
+const shiftTemplates = [
+  {
+    code: 'A01',
+    name: 'Ca Hanh Chinh A01',
+    check_in_time: '08:00',
+    check_out_time: '17:00',
+    work_pattern: 'daily',
+    note: 'Ca hanh chinh co dinh hang ngay'
+  },
+  {
+    code: 'N01',
+    name: 'Ca Dem N01 (lam ngay chan, nghi le)',
+    check_in_time: '22:00',
+    check_out_time: '06:00',
+    work_pattern: 'work_even_rest_odd',
+    note: 'Ca dem theo lich chan-le'
+  },
+  {
+    code: 'N02',
+    name: 'Ca Dem N02 (lam ngay le, nghi chan)',
+    check_in_time: '22:00',
+    check_out_time: '06:00',
+    work_pattern: 'work_odd_rest_even',
+    note: 'Ca dem dao lich chan-le'
+  }
+];
+
 const accountExists = db.prepare('SELECT id FROM accounts WHERE username = ?');
 const employeeByCard = db.prepare('SELECT id FROM employees WHERE id_card = ?');
 const companyByTaxCode = db.prepare('SELECT id FROM partner_companies WHERE tax_code = ?');
-const branchByName = db.prepare('SELECT id, company_id FROM partner_branches WHERE company_id = ? AND branch_name = ?');
 const contractByCode = db.prepare('SELECT id FROM contracts WHERE contract_code = ?');
-const shiftExists = db.prepare('SELECT id FROM shifts WHERE employee_id = ? AND shift_date = ? AND shift_type = ?');
+const shiftTemplateByCode = db.prepare('SELECT id, code FROM shift_templates WHERE code = ?');
+const shiftExists = db.prepare('SELECT id FROM shifts WHERE employee_id = ? AND shift_date = ? AND shift_template_id = ?');
 
 const insertEmployee = db.prepare(`
   INSERT INTO employees (
@@ -99,41 +126,56 @@ const insertEmployee = db.prepare(`
     employee_type, phone, address, department, hire_date, status
   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `);
+
 const updateEmployee = db.prepare(`
   UPDATE employees
   SET first_name = ?, last_name = ?, full_name = ?, birth_date = ?, gender = ?, social_insurance_no = ?, employee_type = ?,
       phone = ?, address = ?, department = ?, hire_date = ?, status = ?
   WHERE id = ?
 `);
+
 const insertAccount = db.prepare(`
   INSERT INTO accounts (username, password, role, employee_id, can_manage_salary)
   VALUES (?, ?, ?, ?, ?)
 `);
+
 const updateAccountRole = db.prepare('UPDATE accounts SET role = ?, employee_id = ?, can_manage_salary = ? WHERE username = ?');
 const updateAccountPassword = db.prepare('UPDATE accounts SET password = ? WHERE username = ?');
+
 const insertCompany = db.prepare(`
   INSERT INTO partner_companies (company_name, tax_code, contact_name, contact_phone, contact_email, address, status, note)
   VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 `);
-const insertBranch = db.prepare(`
-  INSERT INTO partner_branches (company_id, branch_name, address, area, contact_name, contact_phone, status)
-  VALUES (?, ?, ?, ?, ?, ?, ?)
-`);
+
 const insertContract = db.prepare(`
   INSERT INTO contracts (company_id, branch_id, contract_code, service_name, start_date, end_date, guard_quantity, monthly_value, status, note)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?)
 `);
+
+const insertShiftTemplate = db.prepare(`
+  INSERT INTO shift_templates (code, name, check_in_time, check_out_time, work_pattern, note, status)
+  VALUES (?, ?, ?, ?, ?, ?, 'active')
+`);
+
+const updateShiftTemplate = db.prepare(`
+  UPDATE shift_templates
+  SET name = ?, check_in_time = ?, check_out_time = ?, work_pattern = ?, note = ?, status = 'active'
+  WHERE code = ?
+`);
+
 const insertSalary = db.prepare(`
   INSERT OR IGNORE INTO salaries (employee_id, month, base_salary, bonus, deduction, total, note, paid)
   VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 `);
+
 const insertShift = db.prepare(`
-  INSERT INTO shifts (employee_id, shift_date, shift_type, note, company_id, branch_id, contract_id, assignment_role)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  INSERT INTO shifts (employee_id, shift_date, shift_type, shift_template_id, note, company_id, branch_id, contract_id, assignment_role)
+  VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?)
 `);
+
 const updateShift = db.prepare(`
   UPDATE shifts
-  SET note = ?, company_id = ?, branch_id = ?, contract_id = ?, assignment_role = ?
+  SET note = ?, company_id = ?, contract_id = ?, assignment_role = ?, shift_template_id = ?, shift_type = ?
   WHERE id = ?
 `);
 
@@ -271,50 +313,11 @@ const seed = db.transaction(() => {
     return Number(result.lastInsertRowid);
   });
 
-  const branchSeeds = [
-    {
-      company_id: companyIds[0],
-      branch_name: 'Nha may Tan Tao',
-      address: 'Lo A2, KCN Tan Tao, TP.HCM',
-      area: 'Khu san xuat',
-      contact_name: 'Pham Quang Huy',
-      contact_phone: '0912000001'
-    },
-    {
-      company_id: companyIds[1],
-      branch_name: 'Kho Song Than',
-      address: 'Duong so 8, Song Than, Binh Duong',
-      area: 'Kho logistics',
-      contact_name: 'Vo Minh Chau',
-      contact_phone: '0912000002'
-    }
-  ];
-
-  const branchIds = branchSeeds.map((branch) => {
-    const existing = branchByName.get(branch.company_id, branch.branch_name);
-    if (existing) {
-      return existing.id;
-    }
-
-    const result = insertBranch.run(
-      branch.company_id,
-      branch.branch_name,
-      branch.address,
-      branch.area,
-      branch.contact_name,
-      branch.contact_phone,
-      'active'
-    );
-
-    return Number(result.lastInsertRowid);
-  });
-
   const contractSeeds = [
     {
       company_id: companyIds[0],
-      branch_id: branchIds[0],
       contract_code: 'HD-ABC-001',
-      service_name: 'Factory security service 24/7',
+      service_name: null,
       start_date: `${nowMonth}-01`,
       end_date: `${nowMonth}-28`,
       guard_quantity: 2,
@@ -323,9 +326,8 @@ const seed = db.transaction(() => {
     },
     {
       company_id: companyIds[1],
-      branch_id: branchIds[1],
       contract_code: 'HD-XYZ-001',
-      service_name: 'Warehouse security service',
+      service_name: null,
       start_date: `${nowMonth}-01`,
       end_date: `${nowMonth}-28`,
       guard_quantity: 1,
@@ -342,7 +344,6 @@ const seed = db.transaction(() => {
 
     const result = insertContract.run(
       contract.company_id,
-      contract.branch_id,
       contract.contract_code,
       contract.service_name,
       contract.start_date,
@@ -354,6 +355,35 @@ const seed = db.transaction(() => {
     );
 
     return Number(result.lastInsertRowid);
+  });
+
+  const shiftTemplateIds = {};
+  shiftTemplates.forEach((template) => {
+    const existing = shiftTemplateByCode.get(template.code);
+
+    if (existing) {
+      updateShiftTemplate.run(
+        template.name,
+        template.check_in_time,
+        template.check_out_time,
+        template.work_pattern,
+        template.note,
+        template.code
+      );
+      shiftTemplateIds[template.code] = existing.id;
+      return;
+    }
+
+    const result = insertShiftTemplate.run(
+      template.code,
+      template.name,
+      template.check_in_time,
+      template.check_out_time,
+      template.work_pattern,
+      template.note
+    );
+
+    shiftTemplateIds[template.code] = Number(result.lastInsertRowid);
   });
 
   employeeIds.forEach((employeeId, index) => {
@@ -377,45 +407,44 @@ const seed = db.transaction(() => {
     {
       employee_id: employeeIds[0],
       shift_date: `${nowMonth}-05`,
-      shift_type: 'morning',
-      note: 'Morning shift at factory',
+      shift_template_code: 'A01',
+      note: 'Ca hanh chinh tai nha may',
       company_id: companyIds[0],
-      branch_id: branchIds[0],
       contract_id: contractIds[0],
       assignment_role: 'guard'
     },
     {
       employee_id: employeeIds[1],
       shift_date: `${nowMonth}-05`,
-      shift_type: 'night',
-      note: 'Night shift team supervision',
+      shift_template_code: 'N01',
+      note: 'Ca dem theo lich chan',
       company_id: companyIds[0],
-      branch_id: branchIds[0],
       contract_id: contractIds[0],
       assignment_role: 'team_leader'
     },
     {
       employee_id: employeeIds[2],
       shift_date: `${nowMonth}-10`,
-      shift_type: 'afternoon',
-      note: 'Afternoon warehouse supervision',
+      shift_template_code: 'N02',
+      note: 'Ca dem theo lich le',
       company_id: companyIds[1],
-      branch_id: branchIds[1],
       contract_id: contractIds[1],
       assignment_role: 'supervisor'
     }
   ];
 
   shiftSeeds.forEach((shift) => {
-    const existing = shiftExists.get(shift.employee_id, shift.shift_date, shift.shift_type);
+    const templateId = shiftTemplateIds[shift.shift_template_code];
+    const existing = shiftExists.get(shift.employee_id, shift.shift_date, templateId);
 
     if (existing) {
       updateShift.run(
         shift.note,
         shift.company_id,
-        shift.branch_id,
         shift.contract_id,
         shift.assignment_role,
+        templateId,
+        shift.shift_template_code,
         existing.id
       );
       return;
@@ -424,10 +453,10 @@ const seed = db.transaction(() => {
     insertShift.run(
       shift.employee_id,
       shift.shift_date,
-      shift.shift_type,
+      shift.shift_template_code,
+      templateId,
       shift.note,
       shift.company_id,
-      shift.branch_id,
       shift.contract_id,
       shift.assignment_role
     );
@@ -440,9 +469,8 @@ try {
   console.log('Admin account: admin / admin123');
   console.log('HR account: hrstaff / hr123456');
   console.log('User account: user1 / user123');
-  console.log('Added partner companies, branches, contracts, and shift assignments');
+  console.log('Added shift templates and employee shift assignments');
 } catch (err) {
   console.error('Seed failed:', err.message);
   process.exit(1);
 }
-

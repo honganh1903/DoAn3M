@@ -23,6 +23,7 @@ db.exec(`
     first_name TEXT,
     last_name TEXT,
     full_name TEXT,
+    avatar_url TEXT,
     birth_date TEXT,
     gender TEXT,
     id_card TEXT UNIQUE,
@@ -42,6 +43,7 @@ db.exec(`
     password TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'user',
     employee_id INTEGER,
+    avatar_url TEXT,
     can_manage_salary INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now')),
     is_active INTEGER DEFAULT 1,
@@ -110,9 +112,23 @@ db.exec(`
     employee_id INTEGER NOT NULL,
     shift_date TEXT NOT NULL,
     shift_type TEXT NOT NULL,
+    shift_template_id INTEGER,
     note TEXT,
     created_at TEXT DEFAULT (datetime('now')),
-    FOREIGN KEY (employee_id) REFERENCES employees(id)
+    FOREIGN KEY (employee_id) REFERENCES employees(id),
+    FOREIGN KEY (shift_template_id) REFERENCES shift_templates(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS shift_templates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    check_in_time TEXT NOT NULL,
+    check_out_time TEXT NOT NULL,
+    work_pattern TEXT DEFAULT 'daily',
+    note TEXT,
+    status TEXT DEFAULT 'active',
+    created_at TEXT DEFAULT (datetime('now'))
   );
 
   CREATE TABLE IF NOT EXISTS leave_requests (
@@ -154,6 +170,9 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_contracts_company_branch
   ON contracts(company_id, branch_id);
 
+  CREATE INDEX IF NOT EXISTS idx_shift_templates_status
+  ON shift_templates(status);
+
   CREATE INDEX IF NOT EXISTS idx_leave_requests_employee
   ON leave_requests(employee_id, leave_date);
 
@@ -167,13 +186,22 @@ db.exec(`
 ensureColumn('employees', 'first_name', 'TEXT');
 ensureColumn('employees', 'last_name', 'TEXT');
 ensureColumn('employees', 'full_name', 'TEXT');
+ensureColumn('employees', 'avatar_url', 'TEXT');
 ensureColumn('employees', 'social_insurance_no', 'TEXT');
 ensureColumn('employees', 'employee_type', "TEXT DEFAULT 'guard'");
+
+ensureColumn('accounts', 'avatar_url', 'TEXT');
 ensureColumn('accounts', 'can_manage_salary', 'INTEGER DEFAULT 0');
+
 ensureColumn('shifts', 'company_id', 'INTEGER REFERENCES partner_companies(id)');
 ensureColumn('shifts', 'branch_id', 'INTEGER REFERENCES partner_branches(id)');
 ensureColumn('shifts', 'contract_id', 'INTEGER REFERENCES contracts(id)');
 ensureColumn('shifts', 'assignment_role', "TEXT DEFAULT 'guard'");
+ensureColumn('shifts', 'shift_template_id', 'INTEGER REFERENCES shift_templates(id)');
+
+ensureColumn('shift_templates', 'work_pattern', "TEXT DEFAULT 'daily'");
+ensureColumn('shift_templates', 'status', "TEXT DEFAULT 'active'");
+
 ensureColumn('leave_requests', 'duration_type', "TEXT DEFAULT 'full_day'");
 ensureColumn('leave_requests', 'reject_reason', 'TEXT');
 ensureColumn('announcements', 'reject_reason', 'TEXT');
@@ -197,13 +225,11 @@ try {
     WHERE employee_id IS NOT NULL;
   `);
 } catch (err) {
-  // Keep app booting on legacy data with duplicates; API layer still blocks new duplicates.
   if (!String(err.message || '').includes('UNIQUE constraint failed')) {
     throw err;
   }
 }
 
-// Soft migration for old rows that only had full_name.
 db.exec(`
   UPDATE employees
   SET first_name = COALESCE(first_name, full_name, ''),
@@ -211,7 +237,6 @@ db.exec(`
   WHERE first_name IS NULL OR first_name = '';
 `);
 
-// Default employee_type for legacy rows.
 db.exec(`
   UPDATE employees
   SET employee_type = CASE
@@ -232,6 +257,12 @@ db.exec(`
 db.exec(`
   UPDATE leave_requests
   SET duration_type = COALESCE(NULLIF(duration_type, ''), 'full_day')
+`);
+
+db.exec(`
+  UPDATE shift_templates
+  SET work_pattern = COALESCE(NULLIF(work_pattern, ''), 'daily'),
+      status = COALESCE(NULLIF(status, ''), 'active')
 `);
 
 module.exports = db;

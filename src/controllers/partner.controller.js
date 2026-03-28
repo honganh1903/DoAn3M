@@ -32,10 +32,9 @@ const getById = (req, res) => {
       return res.status(404).json({ success: false, message: 'Partner company not found' });
     }
 
-    const branches = db.prepare('SELECT * FROM partner_branches WHERE company_id = ? ORDER BY id DESC').all(req.params.id);
     const contracts = db.prepare('SELECT * FROM contracts WHERE company_id = ? ORDER BY id DESC').all(req.params.id);
 
-    return res.json({ success: true, data: { ...company, branches, contracts } });
+    return res.json({ success: true, data: { ...company, contracts } });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }

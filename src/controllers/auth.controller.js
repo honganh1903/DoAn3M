@@ -10,8 +10,8 @@ const createToken = (account) => {
       id: account.id,
       username: account.username,
       role: account.role,
-          employee_id: account.employee_id,
-          can_manage_salary: account.can_manage_salary === 1
+      employee_id: account.employee_id,
+      can_manage_salary: account.can_manage_salary === 1
     },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
@@ -26,7 +26,15 @@ const login = (req, res) => {
       return res.status(400).json({ success: false, message: 'Please enter username and password' });
     }
 
-    const account = db.prepare('SELECT id, username, password, role, employee_id, is_active, can_manage_salary FROM accounts WHERE username = ?').get(username);
+    const account = db
+      .prepare(`
+        SELECT a.id, a.username, a.password, a.role, a.employee_id, a.is_active, a.can_manage_salary,
+               e.avatar_url
+        FROM accounts a
+        LEFT JOIN employees e ON e.id = a.employee_id
+        WHERE a.username = ?
+      `)
+      .get(username);
 
     if (!account || account.is_active !== 1) {
       return res.status(401).json({ success: false, message: 'Invalid username or password' });
@@ -48,6 +56,7 @@ const login = (req, res) => {
           username: account.username,
           role: account.role,
           employee_id: account.employee_id,
+          avatar_url: account.avatar_url || null,
           can_manage_salary: account.can_manage_salary === 1
         }
       },
@@ -63,7 +72,7 @@ const me = (req, res) => {
     const user = db
       .prepare(`
         SELECT a.id, a.username, a.role, a.employee_id, a.can_manage_salary, a.created_at,
-               e.first_name, e.last_name, ${NAME_SQL} AS full_name,
+               e.first_name, e.last_name, e.avatar_url, ${NAME_SQL} AS full_name,
                e.id_card, e.social_insurance_no, e.employee_type, e.department
         FROM accounts a
         LEFT JOIN employees e ON e.id = a.employee_id
@@ -110,4 +119,3 @@ module.exports = {
   me,
   changePassword
 };
-

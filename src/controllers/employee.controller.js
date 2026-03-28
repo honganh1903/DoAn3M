@@ -6,7 +6,7 @@ const getAll = (req, res) => {
   try {
     const { name, status, department, employee_type, page = 1, limit = 10 } = req.query;
     let query = `
-      SELECT id, first_name, last_name, ${NAME_SQL} AS full_name, birth_date, gender,
+      SELECT id, first_name, last_name, avatar_url, ${NAME_SQL} AS full_name, birth_date, gender,
              id_card, social_insurance_no, employee_type, phone, address, department, hire_date, status, created_at
       FROM employees
       WHERE 1=1
@@ -66,7 +66,7 @@ const getById = (req, res) => {
     }
 
     const employee = db.prepare(`
-      SELECT id, first_name, last_name, ${NAME_SQL} AS full_name, birth_date, gender,
+      SELECT id, first_name, last_name, avatar_url, ${NAME_SQL} AS full_name, birth_date, gender,
              id_card, social_insurance_no, employee_type, phone, address, department, hire_date, status, created_at
       FROM employees
       WHERE id = ?
@@ -87,6 +87,7 @@ const create = (req, res) => {
     const {
       first_name,
       last_name,
+      avatar_url,
       birth_date,
       gender,
       id_card,
@@ -113,14 +114,15 @@ const create = (req, res) => {
     const result = db
       .prepare(`
         INSERT INTO employees (
-          first_name, last_name, full_name, birth_date, gender, id_card, social_insurance_no,
+          first_name, last_name, full_name, avatar_url, birth_date, gender, id_card, social_insurance_no,
           employee_type, phone, address, department, hire_date, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       .run(
         first_name,
         last_name,
         fullName,
+        avatar_url || null,
         birth_date || null,
         gender || null,
         id_card || null,
@@ -134,7 +136,7 @@ const create = (req, res) => {
       );
 
     const employee = db.prepare(`
-      SELECT id, first_name, last_name, ${NAME_SQL} AS full_name, birth_date, gender,
+      SELECT id, first_name, last_name, avatar_url, ${NAME_SQL} AS full_name, birth_date, gender,
              id_card, social_insurance_no, employee_type, phone, address, department, hire_date, status, created_at
       FROM employees
       WHERE id = ?
@@ -158,6 +160,7 @@ const update = (req, res) => {
     const payload = {
       first_name: req.body.first_name ?? existing.first_name,
       last_name: req.body.last_name ?? existing.last_name,
+      avatar_url: req.body.avatar_url ?? existing.avatar_url,
       birth_date: req.body.birth_date ?? existing.birth_date,
       gender: req.body.gender ?? existing.gender,
       id_card: req.body.id_card ?? existing.id_card,
@@ -182,13 +185,14 @@ const update = (req, res) => {
 
     db.prepare(`
       UPDATE employees
-      SET first_name = ?, last_name = ?, full_name = ?, birth_date = ?, gender = ?, id_card = ?, social_insurance_no = ?,
+      SET first_name = ?, last_name = ?, full_name = ?, avatar_url = ?, birth_date = ?, gender = ?, id_card = ?, social_insurance_no = ?,
           employee_type = ?, phone = ?, address = ?, department = ?, hire_date = ?, status = ?
       WHERE id = ?
     `).run(
       payload.first_name,
       payload.last_name,
       fullName,
+      payload.avatar_url,
       payload.birth_date,
       payload.gender,
       payload.id_card,
@@ -203,7 +207,7 @@ const update = (req, res) => {
     );
 
     const employee = db.prepare(`
-      SELECT id, first_name, last_name, ${NAME_SQL} AS full_name, birth_date, gender,
+      SELECT id, first_name, last_name, avatar_url, ${NAME_SQL} AS full_name, birth_date, gender,
              id_card, social_insurance_no, employee_type, phone, address, department, hire_date, status, created_at
       FROM employees
       WHERE id = ?

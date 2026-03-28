@@ -7,14 +7,15 @@ const authRoutes = require('./routes/auth.routes');
 const employeeRoutes = require('./routes/employee.routes');
 const salaryRoutes = require('./routes/salary.routes');
 const shiftRoutes = require('./routes/shift.routes');
+const shiftTemplateRoutes = require('./routes/shift-template.routes');
 const userRoutes = require('./routes/user.routes');
 const accountRoutes = require('./routes/account.routes');
 const partnerRoutes = require('./routes/partner.routes');
-const branchRoutes = require('./routes/branch.routes');
 const contractRoutes = require('./routes/contract.routes');
 const leaveRoutes = require('./routes/leave.routes');
 const announcementRoutes = require('./routes/announcement.routes');
 const adminRoutes = require('./routes/admin.routes');
+const uploadRoutes = require('./routes/upload.routes');
 
 const app = express();
 
@@ -32,14 +33,15 @@ app.use('/api/auth', authRoutes);
 app.use('/api/employees', employeeRoutes);
 app.use('/api/salaries', salaryRoutes);
 app.use('/api/shifts', shiftRoutes);
+app.use('/api/shift-templates', shiftTemplateRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/accounts', accountRoutes);
 app.use('/api/partners', partnerRoutes);
-app.use('/api/branches', branchRoutes);
 app.use('/api/contracts', contractRoutes);
 app.use('/api/leaves', leaveRoutes);
 app.use('/api/announcements', announcementRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/uploads', uploadRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ success: false, message: 'Endpoint not found' });
@@ -50,5 +52,8 @@ app.use((err, req, res, next) => {
 });
 
 module.exports = app;
+
+
+
 
 
