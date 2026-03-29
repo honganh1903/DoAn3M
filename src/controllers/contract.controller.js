@@ -53,8 +53,8 @@ const create = (req, res) => {
     }
 
     const result = db.prepare(`
-      INSERT INTO contracts (company_id, branch_id, contract_code, service_name, start_date, end_date, guard_quantity, monthly_value, status, note)
-      VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO contracts (company_id, contract_code, service_name, start_date, end_date, guard_quantity, monthly_value, status, note)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       company_id,
       contract_code,
@@ -101,7 +101,7 @@ const update = (req, res) => {
 
     db.prepare(`
       UPDATE contracts
-      SET company_id = ?, branch_id = NULL, contract_code = ?, service_name = ?, start_date = ?, end_date = ?,
+      SET company_id = ?, contract_code = ?, service_name = ?, start_date = ?, end_date = ?,
           guard_quantity = ?, monthly_value = ?, status = ?, note = ?
       WHERE id = ?
     `).run(

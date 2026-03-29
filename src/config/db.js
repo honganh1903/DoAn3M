@@ -63,23 +63,9 @@ db.exec(`
     created_at TEXT DEFAULT (datetime('now'))
   );
 
-  CREATE TABLE IF NOT EXISTS partner_branches (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    company_id INTEGER NOT NULL,
-    branch_name TEXT NOT NULL,
-    address TEXT,
-    area TEXT,
-    contact_name TEXT,
-    contact_phone TEXT,
-    status TEXT DEFAULT 'active',
-    created_at TEXT DEFAULT (datetime('now')),
-    FOREIGN KEY (company_id) REFERENCES partner_companies(id)
-  );
-
   CREATE TABLE IF NOT EXISTS contracts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     company_id INTEGER NOT NULL,
-    branch_id INTEGER,
     contract_code TEXT NOT NULL UNIQUE,
     service_name TEXT,
     start_date TEXT,
@@ -89,8 +75,7 @@ db.exec(`
     status TEXT DEFAULT 'active',
     note TEXT,
     created_at TEXT DEFAULT (datetime('now')),
-    FOREIGN KEY (company_id) REFERENCES partner_companies(id),
-    FOREIGN KEY (branch_id) REFERENCES partner_branches(id)
+    FOREIGN KEY (company_id) REFERENCES partner_companies(id)
   );
 
   CREATE TABLE IF NOT EXISTS salaries (
@@ -146,6 +131,17 @@ db.exec(`
     FOREIGN KEY (approved_by) REFERENCES accounts(id)
   );
 
+  CREATE TABLE IF NOT EXISTS leave_balances (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    employee_id INTEGER NOT NULL,
+    year INTEGER NOT NULL,
+    total_days REAL DEFAULT 12,
+    used_days REAL DEFAULT 0,
+    remaining_days REAL DEFAULT 12,
+    updated_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (employee_id) REFERENCES employees(id)
+  );
+
   CREATE TABLE IF NOT EXISTS announcements (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     created_by_employee_id INTEGER NOT NULL,
@@ -164,11 +160,8 @@ db.exec(`
   CREATE UNIQUE INDEX IF NOT EXISTS idx_salaries_employee_month
   ON salaries(employee_id, month);
 
-  CREATE INDEX IF NOT EXISTS idx_partner_branches_company
-  ON partner_branches(company_id);
-
-  CREATE INDEX IF NOT EXISTS idx_contracts_company_branch
-  ON contracts(company_id, branch_id);
+  CREATE INDEX IF NOT EXISTS idx_contracts_company
+  ON contracts(company_id);
 
   CREATE INDEX IF NOT EXISTS idx_shift_templates_status
   ON shift_templates(status);
@@ -178,6 +171,9 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_leave_requests_status
   ON leave_requests(status);
+
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_leave_balances_employee_year
+  ON leave_balances(employee_id, year);
 
   CREATE INDEX IF NOT EXISTS idx_announcements_status
   ON announcements(status, created_at DESC);
@@ -194,7 +190,6 @@ ensureColumn('accounts', 'avatar_url', 'TEXT');
 ensureColumn('accounts', 'can_manage_salary', 'INTEGER DEFAULT 0');
 
 ensureColumn('shifts', 'company_id', 'INTEGER REFERENCES partner_companies(id)');
-ensureColumn('shifts', 'branch_id', 'INTEGER REFERENCES partner_branches(id)');
 ensureColumn('shifts', 'contract_id', 'INTEGER REFERENCES contracts(id)');
 ensureColumn('shifts', 'assignment_role', "TEXT DEFAULT 'guard'");
 ensureColumn('shifts', 'shift_template_id', 'INTEGER REFERENCES shift_templates(id)');
@@ -204,8 +199,129 @@ ensureColumn('shift_templates', 'status', "TEXT DEFAULT 'active'");
 
 ensureColumn('leave_requests', 'duration_type', "TEXT DEFAULT 'full_day'");
 ensureColumn('leave_requests', 'reject_reason', 'TEXT');
+ensureColumn('leave_balances', 'total_days', 'REAL DEFAULT 12');
+ensureColumn('leave_balances', 'used_days', 'REAL DEFAULT 0');
+ensureColumn('leave_balances', 'remaining_days', 'REAL DEFAULT 12');
+ensureColumn('leave_balances', 'updated_at', "TEXT DEFAULT (datetime('now'))");
 ensureColumn('announcements', 'reject_reason', 'TEXT');
 ensureColumn('announcements', 'published_at', 'TEXT');
+
+const classifyShiftTemplate = (template) => {
+  const text = [template.code, template.name, template.note].filter(Boolean).join(' ').toLowerCase();
+  const checkIn = String(template.check_in_time || '').trim();
+  const checkOut = String(template.check_out_time || '').trim();
+
+  if (
+    text.includes('night') ||
+    text.includes('dem') ||
+    text.includes('đêm') ||
+    text.startsWith('n') ||
+    checkIn >= '18:00' ||
+    (checkOut !== '' && checkOut <= '06:00')
+  ) {
+    return 'night';
+  }
+
+  return 'day';
+};
+
+const normalizeShiftData = () => {
+  const tx = db.transaction(() => {
+    const templates = db.prepare(`
+      SELECT id, code, name, check_in_time, check_out_time, work_pattern, note, status
+      FROM shift_templates
+      ORDER BY id ASC
+    `).all();
+
+    const findTemplate = (code) => templates.find((template) => template.code === code);
+
+    let dayTemplate = findTemplate('DAY') || findTemplate('A01');
+    let nightTemplate = findTemplate('NIGHT') || findTemplate('N01') || findTemplate('N02');
+
+    if (!dayTemplate) {
+      const result = db.prepare(`
+        INSERT INTO shift_templates (code, name, check_in_time, check_out_time, work_pattern, note, status)
+        VALUES ('DAY', 'Ca Ngay', '08:00', '17:00', 'daily', 'Ca ngay mac dinh', 'active')
+      `).run();
+      dayTemplate = { id: Number(result.lastInsertRowid) };
+    } else {
+      db.prepare(`
+        UPDATE shift_templates
+        SET code = 'DAY',
+            name = 'Ca Ngay',
+            check_in_time = '08:00',
+            check_out_time = '17:00',
+            work_pattern = 'daily',
+            note = 'Ca ngay mac dinh',
+            status = 'active'
+        WHERE id = ?
+      `).run(dayTemplate.id);
+    }
+
+    if (!nightTemplate) {
+      const result = db.prepare(`
+        INSERT INTO shift_templates (code, name, check_in_time, check_out_time, work_pattern, note, status)
+        VALUES ('NIGHT', 'Ca Dem', '22:00', '06:00', 'daily', 'Ca dem mac dinh', 'active')
+      `).run();
+      nightTemplate = { id: Number(result.lastInsertRowid) };
+    } else {
+      db.prepare(`
+        UPDATE shift_templates
+        SET code = 'NIGHT',
+            name = 'Ca Dem',
+            check_in_time = '22:00',
+            check_out_time = '06:00',
+            work_pattern = 'daily',
+            note = 'Ca dem mac dinh',
+            status = 'active'
+        WHERE id = ?
+      `).run(nightTemplate.id);
+    }
+
+    const otherTemplates = db.prepare(`
+      SELECT id, code, name, check_in_time, check_out_time, note
+      FROM shift_templates
+      WHERE id NOT IN (?, ?)
+    `).all(dayTemplate.id, nightTemplate.id);
+
+    otherTemplates.forEach((template) => {
+      const targetId = classifyShiftTemplate(template) === 'night' ? nightTemplate.id : dayTemplate.id;
+      db.prepare('UPDATE shifts SET shift_template_id = ? WHERE shift_template_id = ?').run(targetId, template.id);
+      db.prepare('DELETE FROM shift_templates WHERE id = ?').run(template.id);
+    });
+
+    db.prepare(`
+      UPDATE shifts
+      SET shift_type = CASE
+        WHEN shift_template_id = ? THEN 'day'
+        WHEN shift_template_id = ? THEN 'night'
+        WHEN lower(COALESCE(shift_type, '')) IN ('a01', 'morning', 'afternoon', 'day', 'ca ngay', 'ca ngày') THEN 'day'
+        WHEN lower(COALESCE(shift_type, '')) IN ('n01', 'n02', 'night', 'ca dem', 'ca đêm') THEN 'night'
+        ELSE shift_type
+      END
+    `).run(dayTemplate.id, nightTemplate.id);
+
+    db.prepare(`
+      UPDATE shifts
+      SET shift_template_id = CASE
+        WHEN lower(COALESCE(shift_type, '')) = 'day' THEN ?
+        WHEN lower(COALESCE(shift_type, '')) = 'night' THEN ?
+        ELSE shift_template_id
+      END
+      WHERE shift_template_id IS NULL
+    `).run(dayTemplate.id, nightTemplate.id);
+
+    db.prepare(`
+      UPDATE shift_templates
+      SET status = CASE
+        WHEN id IN (?, ?) THEN 'active'
+        ELSE 'inactive'
+      END
+    `).run(dayTemplate.id, nightTemplate.id);
+  });
+
+  tx();
+};
 
 db.exec(`
   CREATE UNIQUE INDEX IF NOT EXISTS idx_employees_social_insurance_no
@@ -259,10 +375,67 @@ db.exec(`
   SET duration_type = COALESCE(NULLIF(duration_type, ''), 'full_day')
 `);
 
+normalizeShiftData();
+
 db.exec(`
   UPDATE shift_templates
   SET work_pattern = COALESCE(NULLIF(work_pattern, ''), 'daily'),
       status = COALESCE(NULLIF(status, ''), 'active')
 `);
+
+const normalizeLeaveBalances = () => {
+  const tx = db.transaction(() => {
+    const currentYear = new Date().getFullYear();
+
+    db.prepare(`
+      INSERT INTO leave_balances (employee_id, year, total_days, used_days, remaining_days, updated_at)
+      SELECT e.id, ?, 12, 0, 12, datetime('now')
+      FROM employees e
+      WHERE NOT EXISTS (
+        SELECT 1
+        FROM leave_balances lb
+        WHERE lb.employee_id = e.id AND lb.year = ?
+      )
+    `).run(currentYear, currentYear);
+
+    const usages = db.prepare(`
+      SELECT lb.employee_id,
+             lb.year,
+             COALESCE(SUM(
+               CASE lr.duration_type
+                 WHEN 'full_day' THEN 1.0
+                 WHEN 'half_day_morning' THEN 0.5
+                 WHEN 'half_day_afternoon' THEN 0.5
+                 ELSE 0
+               END
+             ), 0) AS used_days
+      FROM leave_balances lb
+      LEFT JOIN leave_requests lr
+        ON lr.employee_id = lb.employee_id
+       AND lr.status = 'approved'
+       AND substr(lr.leave_date, 1, 4) = CAST(lb.year AS TEXT)
+      GROUP BY lb.employee_id, lb.year
+    `).all();
+
+    const update = db.prepare(`
+      UPDATE leave_balances
+      SET used_days = ?,
+          remaining_days = CASE
+            WHEN total_days - ? < 0 THEN 0
+            ELSE total_days - ?
+          END,
+          updated_at = datetime('now')
+      WHERE employee_id = ? AND year = ?
+    `);
+
+    usages.forEach((row) => {
+      update.run(row.used_days, row.used_days, row.used_days, row.employee_id, row.year);
+    });
+  });
+
+  tx();
+};
+
+normalizeLeaveBalances();
 
 module.exports = db;

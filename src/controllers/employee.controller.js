@@ -1,6 +1,13 @@
 const db = require('../config/db');
 
 const NAME_SQL = "COALESCE(NULLIF(TRIM(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')), ''), full_name, '')";
+const ensureAnnualLeaveBalance = (employeeId, year = new Date().getFullYear()) => {
+  db.prepare(`
+    INSERT INTO leave_balances (employee_id, year, total_days, used_days, remaining_days, updated_at)
+    VALUES (?, ?, 12, 0, 12, datetime('now'))
+    ON CONFLICT(employee_id, year) DO NOTHING
+  `).run(employeeId, year);
+};
 
 const getAll = (req, res) => {
   try {
@@ -141,6 +148,8 @@ const create = (req, res) => {
       FROM employees
       WHERE id = ?
     `).get(result.lastInsertRowid);
+
+    ensureAnnualLeaveBalance(employee.id);
 
     return res.status(201).json({ success: true, data: employee, message: 'Employee created successfully' });
   } catch (err) {

@@ -3,6 +3,17 @@ const db = require('../config/db');
 
 const NAME_SQL = "COALESCE(NULLIF(TRIM(COALESCE(e.first_name, '') || ' ' || COALESCE(e.last_name, '')), ''), e.full_name, '')";
 const VALID_ACCOUNT_ROLES = ['user', 'employee', 'admin'];
+const ensureAnnualLeaveBalance = (employeeId, year = new Date().getFullYear()) => {
+  if (!employeeId) {
+    return;
+  }
+
+  db.prepare(`
+    INSERT INTO leave_balances (employee_id, year, total_days, used_days, remaining_days, updated_at)
+    VALUES (?, ?, 12, 0, 12, datetime('now'))
+    ON CONFLICT(employee_id, year) DO NOTHING
+  `).run(employeeId, year);
+};
 
 const getMe = (req, res) => {
   try {
@@ -128,6 +139,8 @@ const create = (req, res) => {
     const user = db
       .prepare('SELECT id, username, role, employee_id, can_manage_salary, created_at, is_active FROM accounts WHERE id = ?')
       .get(result.lastInsertRowid);
+
+    ensureAnnualLeaveBalance(user.employee_id);
 
     return res.status(201).json({ success: true, data: user, message: 'Account created successfully' });
   } catch (err) {

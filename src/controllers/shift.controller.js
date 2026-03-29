@@ -1,6 +1,148 @@
 const db = require('../config/db');
 
 const NAME_SQL = "COALESCE(NULLIF(TRIM(COALESCE(e.first_name, '') || ' ' || COALESCE(e.last_name, '')), ''), e.full_name, '')";
+const VALID_SHIFT_CODES = ['DAY', 'NIGHT'];
+const VALID_WORK_PATTERNS = ['daily'];
+const getShiftTypeFromTemplate = (template) => (template?.code === 'NIGHT' ? 'night' : 'day');
+
+const listTemplates = (req, res) => {
+  try {
+    const templates = db.prepare('SELECT * FROM shift_templates ORDER BY id ASC').all();
+    return res.json({ success: true, data: templates });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+const getTemplateById = (req, res) => {
+  try {
+    const template = db.prepare('SELECT * FROM shift_templates WHERE id = ?').get(req.params.id);
+
+    if (!template) {
+      return res.status(404).json({ success: false, message: 'Shift template not found' });
+    }
+
+    return res.json({ success: true, data: template });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+const createTemplate = (req, res) => {
+  try {
+    const { code, name, check_in_time, check_out_time, work_pattern = 'daily', note } = req.body;
+    const normalizedCode = String(code || '').trim().toUpperCase();
+
+    if (!normalizedCode || !name || !check_in_time || !check_out_time) {
+      return res.status(400).json({ success: false, message: 'Missing required fields: code, name, check_in_time, check_out_time' });
+    }
+
+    if (!VALID_SHIFT_CODES.includes(normalizedCode)) {
+      return res.status(400).json({ success: false, message: 'code must be DAY or NIGHT' });
+    }
+
+    if (!VALID_WORK_PATTERNS.includes(work_pattern)) {
+      return res.status(400).json({ success: false, message: 'work_pattern must be daily' });
+    }
+
+    const existingByCode = db.prepare('SELECT id FROM shift_templates WHERE code = ?').get(normalizedCode);
+    if (existingByCode) {
+      return res.status(400).json({ success: false, message: `Shift template ${normalizedCode} already exists` });
+    }
+
+    const result = db.prepare(`
+      INSERT INTO shift_templates (code, name, check_in_time, check_out_time, work_pattern, note, status)
+      VALUES (?, ?, ?, ?, ?, ?, 'active')
+    `).run(normalizedCode, name, check_in_time, check_out_time, work_pattern, note || null);
+
+    const template = db.prepare('SELECT * FROM shift_templates WHERE id = ?').get(result.lastInsertRowid);
+    return res.status(201).json({ success: true, data: template, message: 'Shift template created successfully' });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+const updateTemplate = (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const existing = db.prepare('SELECT * FROM shift_templates WHERE id = ?').get(id);
+
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Shift template not found' });
+    }
+
+    const payload = {
+      code: String(req.body.code ?? existing.code).trim().toUpperCase(),
+      name: req.body.name ?? existing.name,
+      check_in_time: req.body.check_in_time ?? existing.check_in_time,
+      check_out_time: req.body.check_out_time ?? existing.check_out_time,
+      work_pattern: req.body.work_pattern ?? existing.work_pattern,
+      note: req.body.note ?? existing.note,
+      status: req.body.status ?? existing.status
+    };
+
+    if (!VALID_SHIFT_CODES.includes(payload.code)) {
+      return res.status(400).json({ success: false, message: 'code must be DAY or NIGHT' });
+    }
+
+    if (!VALID_WORK_PATTERNS.includes(payload.work_pattern)) {
+      return res.status(400).json({ success: false, message: 'work_pattern must be daily' });
+    }
+
+    const duplicateCode = db.prepare('SELECT id FROM shift_templates WHERE code = ? AND id != ?').get(payload.code, id);
+    if (duplicateCode) {
+      return res.status(400).json({ success: false, message: `Shift template ${payload.code} already exists` });
+    }
+
+    db.prepare(`
+      UPDATE shift_templates
+      SET code = ?, name = ?, check_in_time = ?, check_out_time = ?, work_pattern = ?, note = ?, status = ?
+      WHERE id = ?
+    `).run(
+      payload.code,
+      payload.name,
+      payload.check_in_time,
+      payload.check_out_time,
+      payload.work_pattern,
+      payload.note,
+      payload.status,
+      id
+    );
+
+    const template = db.prepare('SELECT * FROM shift_templates WHERE id = ?').get(id);
+
+    db.prepare(`
+      UPDATE shifts
+      SET shift_type = ?
+      WHERE shift_template_id = ?
+    `).run(getShiftTypeFromTemplate(template), id);
+
+    return res.json({ success: true, data: template, message: 'Shift template updated successfully' });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+const removeTemplate = (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const inUse = db.prepare('SELECT id FROM shifts WHERE shift_template_id = ? LIMIT 1').get(id);
+
+    if (inUse) {
+      return res.status(400).json({ success: false, message: 'Cannot delete shift template that is currently assigned' });
+    }
+
+    const result = db.prepare('UPDATE shift_templates SET status = ? WHERE id = ?').run('inactive', id);
+
+    if (result.changes === 0) {
+      return res.status(404).json({ success: false, message: 'Shift template not found' });
+    }
+
+    return res.json({ success: true, message: 'Shift template marked as inactive' });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
 
 const getAll = (req, res) => {
   try {
@@ -117,6 +259,34 @@ const getTemplate = (shiftTemplateId) => {
   return db.prepare('SELECT id, code FROM shift_templates WHERE id = ?').get(shiftTemplateId);
 };
 
+const getByEmployee = (req, res) => {
+  try {
+    const employeeId = Number(req.params.employeeId);
+
+    if (!employeeId) {
+      return res.status(400).json({ success: false, message: 'employeeId is required' });
+    }
+
+    const shifts = db
+      .prepare(`
+        SELECT s.*, ${NAME_SQL} AS full_name, c.company_name, ct.contract_code,
+               st.code AS shift_code, st.name AS shift_name, st.check_in_time, st.check_out_time, st.work_pattern
+        FROM shifts s
+        JOIN employees e ON e.id = s.employee_id
+        LEFT JOIN partner_companies c ON c.id = s.company_id
+        LEFT JOIN contracts ct ON ct.id = s.contract_id
+        LEFT JOIN shift_templates st ON st.id = s.shift_template_id
+        WHERE s.employee_id = ?
+        ORDER BY s.shift_date DESC, s.id DESC
+      `)
+      .all(employeeId);
+
+    return res.json({ success: true, data: shifts });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 const create = (req, res) => {
   try {
     const { employee_id, shift_date, shift_template_id, note, company_id, contract_id, assignment_role } = req.body;
@@ -135,13 +305,13 @@ const create = (req, res) => {
     const result = db
       .prepare(`
         INSERT INTO shifts (
-          employee_id, shift_date, shift_type, shift_template_id, note, company_id, branch_id, contract_id, assignment_role
-        ) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?)
+          employee_id, shift_date, shift_type, shift_template_id, note, company_id, contract_id, assignment_role
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `)
       .run(
         employee_id,
         shift_date,
-        template.code,
+        getShiftTypeFromTemplate(template),
         shift_template_id,
         note || null,
         company_id || null,
@@ -189,12 +359,12 @@ const update = (req, res) => {
     db.prepare(`
       UPDATE shifts
       SET employee_id = ?, shift_date = ?, shift_type = ?, shift_template_id = ?, note = ?,
-          company_id = ?, branch_id = NULL, contract_id = ?, assignment_role = ?
+          company_id = ?, contract_id = ?, assignment_role = ?
       WHERE id = ?
     `).run(
       payload.employee_id,
       payload.shift_date,
-      template.code,
+      getShiftTypeFromTemplate(template),
       payload.shift_template_id,
       payload.note,
       payload.company_id,
@@ -225,7 +395,13 @@ const remove = (req, res) => {
 };
 
 module.exports = {
+  listTemplates,
+  getTemplateById,
+  createTemplate,
+  updateTemplate,
+  removeTemplate,
   getAll,
+  getByEmployee,
   getMine,
   create,
   update,

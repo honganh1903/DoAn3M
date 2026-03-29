@@ -4,11 +4,29 @@ const { authenticate, authorize } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.get('/', authenticate, authorize('admin', 'employee'), controller.getAll);
-router.get('/my', authenticate, authorize('user', 'employee', 'admin'), controller.getMine);
-router.post('/', authenticate, authorize('admin', 'employee'), controller.create);
-router.put('/:id', authenticate, authorize('admin', 'employee'), controller.update);
-router.delete('/:id', authenticate, authorize('admin', 'employee'), controller.remove);
+router.get('/', authenticate, authorize('admin', 'employee', 'user'), (req, res) => {
+  return res.json({
+    success: true,
+    message: 'Shift API namespace',
+    data: {
+      templates: '/api/shifts/templates',
+      assignments: '/api/shifts/assignments'
+    }
+  });
+});
+
+router.get('/templates', authenticate, authorize('admin', 'employee', 'user'), controller.listTemplates);
+router.get('/templates/:id', authenticate, authorize('admin', 'employee', 'user'), controller.getTemplateById);
+router.post('/templates', authenticate, authorize('admin', 'employee'), controller.createTemplate);
+router.put('/templates/:id', authenticate, authorize('admin', 'employee'), controller.updateTemplate);
+router.delete('/templates/:id', authenticate, authorize('admin', 'employee'), controller.removeTemplate);
+
+router.get('/assignments', authenticate, authorize('admin', 'employee'), controller.getAll);
+router.get('/assignments/my', authenticate, authorize('user', 'employee', 'admin'), controller.getMine);
+router.get('/assignments/employee/:employeeId', authenticate, authorize('admin', 'employee'), controller.getByEmployee);
+router.post('/assignments', authenticate, authorize('admin', 'employee'), controller.create);
+router.put('/assignments/:id', authenticate, authorize('admin', 'employee'), controller.update);
+router.delete('/assignments/:id', authenticate, authorize('admin', 'employee'), controller.remove);
 
 module.exports = router;
 

@@ -4,6 +4,7 @@ const { authenticate, authorize } = require('../middleware/auth');
 
 const router = express.Router();
 
+router.get('/my/balance', authenticate, authorize('user', 'employee', 'admin'), controller.getMyBalance);
 router.get('/my', authenticate, authorize('user', 'employee', 'admin'), controller.getMyRequests);
 router.post('/', authenticate, authorize('user', 'employee'), controller.create);
 
