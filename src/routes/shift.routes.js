@@ -22,9 +22,13 @@ router.put('/templates/:id', authenticate, authorize('admin', 'employee'), contr
 router.delete('/templates/:id', authenticate, authorize('admin', 'employee'), controller.removeTemplate);
 
 router.get('/assignments', authenticate, authorize('admin', 'employee'), controller.getAll);
+router.get('/assignments/candidates', authenticate, authorize('admin', 'employee'), controller.getAssignmentCandidates);
+router.get('/assignments/contracts/:contractId/candidates', authenticate, authorize('admin', 'employee'), controller.getContractCandidates);
+router.put('/assignments/contracts/:contractId/members', authenticate, authorize('admin', 'employee'), controller.syncContractMembers);
 router.get('/assignments/my', authenticate, authorize('user', 'employee', 'admin'), controller.getMine);
 router.get('/assignments/employee/:employeeId', authenticate, authorize('admin', 'employee'), controller.getByEmployee);
 router.post('/assignments', authenticate, authorize('admin', 'employee'), controller.create);
+router.post('/assignments/range', authenticate, authorize('admin', 'employee'), controller.createRange);
 router.put('/assignments/:id', authenticate, authorize('admin', 'employee'), controller.update);
 router.delete('/assignments/:id', authenticate, authorize('admin', 'employee'), controller.remove);
 

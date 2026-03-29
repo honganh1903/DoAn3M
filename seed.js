@@ -19,7 +19,40 @@ const currentYear = now.getFullYear();
 const nowDateTime = toDateTime(now);
 
 const shiftTypeByTemplateCode = { DAY: 'day', NIGHT: 'night' };
-const monthDays = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
+const toLocalDateText = (dateObj) => {
+  const y = dateObj.getFullYear();
+  const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const d = String(dateObj.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+const getMonthRangeByOffset = (offset) => {
+  const monthDate = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+  const y = monthDate.getFullYear();
+  const m = monthDate.getMonth();
+  const ym = toYearMonth(monthDate);
+  const lastDay = new Date(y, m + 1, 0).getDate();
+  return {
+    ym,
+    start: `${ym}-01`,
+    end: `${ym}-${String(lastDay).padStart(2, '0')}`
+  };
+};
+
+const iterDateRange = (dateFrom, dateTo, callback) => {
+  let current = new Date(`${dateFrom}T00:00:00`);
+  const end = new Date(`${dateTo}T00:00:00`);
+  while (current <= end) {
+    callback(toLocalDateText(current));
+    current.setDate(current.getDate() + 1);
+  }
+};
+
+const m0 = getMonthRangeByOffset(0);
+const m1 = getMonthRangeByOffset(1);
+const m2 = getMonthRangeByOffset(2);
+const m3 = getMonthRangeByOffset(3);
+const m4 = getMonthRangeByOffset(4);
+const m5 = getMonthRangeByOffset(5);
 
 const guardProfiles = [
   { key: 'guard_01', first_name: 'Nguyen', last_name: 'Van An', id_card: '079095000001', social_insurance_no: 'BHXH000001', phone: '0901000001', department: 'Gate A', hire_date: '2024-01-10' },
@@ -84,19 +117,45 @@ const partnerCompanies = [
 ];
 
 const contractSeeds = [
-  { contract_code: 'HD-ABC-001', company_key: 'abc', service_name: 'Bao ve nha may A', guard_quantity: 4, monthly_value: 78000000, note: 'Factory line 1' },
-  { contract_code: 'HD-ABC-002', company_key: 'abc', service_name: 'Bao ve kho vat tu', guard_quantity: 2, monthly_value: 36000000, note: 'Warehouse zone' },
-  { contract_code: 'HD-XYZ-001', company_key: 'xyz', service_name: 'Bao ve kho logistics', guard_quantity: 3, monthly_value: 51000000, note: 'Dock security' },
-  { contract_code: 'HD-MNR-001', company_key: 'mnr', service_name: 'Bao ve trung tam phan phoi', guard_quantity: 2, monthly_value: 36000000, note: 'Distribution center' },
-  { contract_code: 'HD-TVT-001', company_key: 'tvt', service_name: 'Bao ve nha may nang luong', guard_quantity: 3, monthly_value: 56000000, note: 'Plant area A' },
-  { contract_code: 'HD-TVT-002', company_key: 'tvt', service_name: 'Bao ve cong truoc', guard_quantity: 2, monthly_value: 32000000, note: 'Main gate' },
-  { contract_code: 'HD-ZMS-001', company_key: 'zms', service_name: 'Bao ve bai hang', guard_quantity: 3, monthly_value: 54000000, note: 'Goods yard' }
-].map((item) => ({
-  ...item,
-  start_date: `${nowMonth}-01`,
-  end_date: `${nowMonth}-28`,
-  status: 'active'
-}));
+  { contract_code: 'HD-ABC-001', company_key: 'abc', shift_template_code: 'DAY', service_name: 'Bao ve nha may A', guard_quantity: 3, monthly_value: 78000000, note: 'Factory line 1', start_date: m0.start, end_date: m1.end, status: 'active' },
+  { contract_code: 'HD-ABC-002', company_key: 'abc', shift_template_code: 'NIGHT', service_name: 'Bao ve kho vat tu', guard_quantity: 2, monthly_value: 36000000, note: 'Warehouse zone', start_date: m0.start, end_date: m1.end, status: 'active' },
+  { contract_code: 'HD-XYZ-001', company_key: 'xyz', shift_template_code: 'DAY', service_name: 'Bao ve kho logistics', guard_quantity: 2, monthly_value: 51000000, note: 'Dock security', start_date: m0.start, end_date: m1.end, status: 'active' },
+  { contract_code: 'HD-MNR-001', company_key: 'mnr', shift_template_code: 'NIGHT', service_name: 'Bao ve trung tam phan phoi', guard_quantity: 1, monthly_value: 36000000, note: 'Distribution center', start_date: m0.start, end_date: m1.end, status: 'active' },
+  { contract_code: 'HD-TVT-001', company_key: 'tvt', shift_template_code: 'DAY', service_name: 'Bao ve nha may nang luong', guard_quantity: 2, monthly_value: 56000000, note: 'Plant area A', start_date: m2.start, end_date: m3.end, status: 'active' },
+  { contract_code: 'HD-TVT-002', company_key: 'tvt', shift_template_code: 'NIGHT', service_name: 'Bao ve cong truoc', guard_quantity: 2, monthly_value: 32000000, note: 'Main gate', start_date: m2.start, end_date: m3.end, status: 'active' },
+  { contract_code: 'HD-ZMS-001', company_key: 'zms', shift_template_code: 'DAY', service_name: 'Bao ve bai hang', guard_quantity: 3, monthly_value: 54000000, note: 'Goods yard', start_date: m4.start, end_date: m5.end, status: 'active' }
+];
+
+const contractMemberPlans = {
+  'HD-ABC-001': [
+    { employee_key: 'guard_01', assignment_role: 'team_leader' },
+    { employee_key: 'guard_02', assignment_role: 'guard' }
+  ],
+  'HD-ABC-002': [
+    { employee_key: 'guard_04', assignment_role: 'team_leader' }
+  ],
+  'HD-XYZ-001': [
+    { employee_key: 'guard_06', assignment_role: 'team_leader' }
+  ],
+  'HD-MNR-001': [
+    { employee_key: 'guard_08', assignment_role: 'supervisor' }
+  ],
+  'HD-TVT-001': [
+    { employee_key: 'guard_01', assignment_role: 'team_leader' },
+    { employee_key: 'guard_02', assignment_role: 'guard' }
+  ],
+  'HD-TVT-002': [
+    { employee_key: 'guard_03', assignment_role: 'team_leader' },
+    { employee_key: 'guard_04', assignment_role: 'guard' }
+  ],
+  'HD-ZMS-001': [
+    { employee_key: 'guard_05', assignment_role: 'team_leader' },
+    { employee_key: 'guard_06', assignment_role: 'guard' },
+    { employee_key: 'guard_07', assignment_role: 'guard' }
+  ]
+};
+
+const internalShiftPlans = [];
 
 const shiftTemplates = [
   { code: 'DAY', name: 'Ca Ngay', check_in_time: '08:00', check_out_time: '17:00', work_pattern: 'daily', note: 'Ca ngay mac dinh' },
@@ -125,7 +184,6 @@ const accountByUsername = db.prepare('SELECT id FROM accounts WHERE username = ?
 const companyByTaxCode = db.prepare('SELECT id FROM partner_companies WHERE tax_code = ?');
 const contractByCode = db.prepare('SELECT id FROM contracts WHERE contract_code = ?');
 const shiftTemplateByCode = db.prepare('SELECT id FROM shift_templates WHERE code = ?');
-const shiftExists = db.prepare('SELECT id FROM shifts WHERE employee_id = ? AND shift_date = ? AND shift_template_id = ?');
 const leaveExists = db.prepare('SELECT id FROM leave_requests WHERE employee_id = ? AND leave_date = ? AND duration_type = ?');
 const announcementExists = db.prepare('SELECT id FROM announcements WHERE created_by_employee_id = ? AND title = ?');
 
@@ -166,13 +224,13 @@ const updateCompany = db.prepare(`
 `);
 
 const insertContract = db.prepare(`
-  INSERT INTO contracts (company_id, contract_code, service_name, start_date, end_date, guard_quantity, monthly_value, status, note)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  INSERT INTO contracts (company_id, shift_template_id, contract_code, service_name, start_date, end_date, guard_quantity, monthly_value, status, note)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `);
 
 const updateContract = db.prepare(`
   UPDATE contracts
-  SET company_id = ?, service_name = ?, start_date = ?, end_date = ?, guard_quantity = ?, monthly_value = ?, status = ?, note = ?
+  SET company_id = ?, shift_template_id = ?, service_name = ?, start_date = ?, end_date = ?, guard_quantity = ?, monthly_value = ?, status = ?, note = ?
   WHERE contract_code = ?
 `);
 
@@ -202,12 +260,6 @@ const upsertSalary = db.prepare(`
 const insertShift = db.prepare(`
   INSERT INTO shifts (employee_id, shift_date, shift_type, shift_template_id, note, company_id, contract_id, assignment_role)
   VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-`);
-
-const updateShift = db.prepare(`
-  UPDATE shifts
-  SET shift_type = ?, note = ?, company_id = ?, contract_id = ?, assignment_role = ?, shift_template_id = ?
-  WHERE id = ?
 `);
 
 const insertLeave = db.prepare(`
@@ -241,12 +293,6 @@ const upsertLeaveBalance = db.prepare(`
     remaining_days = excluded.remaining_days,
     updated_at = datetime('now')
 `);
-
-const getLeaveDays = (durationType) => {
-  if (durationType === 'full_day') return 1;
-  if (durationType === 'half_day_morning' || durationType === 'half_day_afternoon') return 0.5;
-  return 0;
-};
 
 const seed = db.transaction(() => {
   const employeeIds = {};
@@ -360,40 +406,6 @@ const seed = db.transaction(() => {
     companyIds[company.key] = Number(result.lastInsertRowid);
   });
 
-  contractSeeds.forEach((contract) => {
-    const companyId = companyIds[contract.company_key];
-    const existing = contractByCode.get(contract.contract_code);
-
-    if (existing) {
-      updateContract.run(
-        companyId,
-        contract.service_name,
-        contract.start_date,
-        contract.end_date,
-        contract.guard_quantity,
-        contract.monthly_value,
-        contract.status,
-        contract.note,
-        contract.contract_code
-      );
-      contractIds[contract.contract_code] = existing.id;
-      return;
-    }
-
-    const result = insertContract.run(
-      companyId,
-      contract.contract_code,
-      contract.service_name,
-      contract.start_date,
-      contract.end_date,
-      contract.guard_quantity,
-      contract.monthly_value,
-      contract.status,
-      contract.note
-    );
-    contractIds[contract.contract_code] = Number(result.lastInsertRowid);
-  });
-
   shiftTemplates.forEach((template) => {
     const existing = shiftTemplateByCode.get(template.code);
 
@@ -421,6 +433,47 @@ const seed = db.transaction(() => {
     shiftTemplateIds[template.code] = Number(result.lastInsertRowid);
   });
 
+  contractSeeds.forEach((contract) => {
+    const companyId = companyIds[contract.company_key];
+    const shiftTemplateId = shiftTemplateIds[contract.shift_template_code] || shiftTemplateByCode.get(contract.shift_template_code)?.id;
+    const existing = contractByCode.get(contract.contract_code);
+
+    if (!shiftTemplateId) {
+      throw new Error(`Missing shift template for contract ${contract.contract_code}: ${contract.shift_template_code}`);
+    }
+
+    if (existing) {
+      updateContract.run(
+        companyId,
+        shiftTemplateId,
+        contract.service_name,
+        contract.start_date,
+        contract.end_date,
+        contract.guard_quantity,
+        contract.monthly_value,
+        contract.status,
+        contract.note,
+        contract.contract_code
+      );
+      contractIds[contract.contract_code] = existing.id;
+      return;
+    }
+
+    const result = insertContract.run(
+      companyId,
+      shiftTemplateId,
+      contract.contract_code,
+      contract.service_name,
+      contract.start_date,
+      contract.end_date,
+      contract.guard_quantity,
+      contract.monthly_value,
+      contract.status,
+      contract.note
+    );
+    contractIds[contract.contract_code] = Number(result.lastInsertRowid);
+  });
+
   const salaryProfiles = {};
   guardProfiles.forEach((guard, index) => {
     salaryProfiles[guard.key] = {
@@ -443,27 +496,77 @@ const seed = db.transaction(() => {
     });
   });
 
-  const contractRotation = ['HD-ABC-001', 'HD-ABC-002', 'HD-XYZ-001', 'HD-MNR-001', 'HD-TVT-001', 'HD-TVT-002', 'HD-ZMS-001'];
-  guardProfiles.forEach((guard, guardIndex) => {
-    const employeeId = employeeIds[guard.key];
-    monthDays.forEach((day, shiftIndex) => {
-      const templateCode = shiftIndex % 2 === 0 ? 'DAY' : 'NIGHT';
-      const templateId = shiftTemplateIds[templateCode];
-      const shiftType = shiftTypeByTemplateCode[templateCode];
-      const contractCode = contractRotation[(guardIndex + shiftIndex) % contractRotation.length];
-      const contractId = contractIds[contractCode];
-      const companyKey = contractSeeds.find((item) => item.contract_code === contractCode).company_key;
-      const companyId = companyIds[companyKey];
-      const shiftDate = `${nowMonth}-${String(day).padStart(2, '0')}`;
-      const assignmentRole = guardIndex % 4 === 0 ? 'team_leader' : (guardIndex % 5 === 0 ? 'supervisor' : 'guard');
-      const note = `${templateCode === 'DAY' ? 'Ca ngay' : 'Ca dem'} - ${contractCode}`;
+  db.prepare('DELETE FROM shifts').run();
 
-      const existing = shiftExists.get(employeeId, shiftDate, templateId);
-      if (existing) {
-        updateShift.run(shiftType, note, companyId, contractId, assignmentRole, templateId, existing.id);
-      } else {
-        insertShift.run(employeeId, shiftDate, shiftType, templateId, note, companyId, contractId, assignmentRole);
+  const assignedByEmployeeDate = new Set();
+  const reserveAssignment = (employeeId, shiftDate, label) => {
+    const key = `${employeeId}|${shiftDate}`;
+    if (assignedByEmployeeDate.has(key)) {
+      throw new Error(`Duplicate shift assignment for employee ${employeeId} on ${shiftDate} (${label})`);
+    }
+    assignedByEmployeeDate.add(key);
+  };
+
+  contractSeeds.forEach((contract) => {
+    const members = contractMemberPlans[contract.contract_code] || [];
+    if (members.length > Number(contract.guard_quantity)) {
+      throw new Error(`Contract ${contract.contract_code} has members greater than guard_quantity (${contract.guard_quantity})`);
+    }
+
+    const templateCode = contract.shift_template_code;
+    const templateId = shiftTemplateIds[templateCode];
+    const shiftType = shiftTypeByTemplateCode[templateCode];
+    const contractId = contractIds[contract.contract_code];
+    const companyId = companyIds[contract.company_key];
+
+    if (!templateId || !contractId || !companyId) {
+      throw new Error(`Contract seed mapping is missing for ${contract.contract_code}`);
+    }
+
+    members.forEach((member) => {
+      const employeeId = employeeIds[member.employee_key];
+      if (!employeeId) {
+        throw new Error(`Employee not found for contract ${contract.contract_code}: ${member.employee_key}`);
       }
+
+      iterDateRange(contract.start_date, contract.end_date, (shiftDate) => {
+        reserveAssignment(employeeId, shiftDate, contract.contract_code);
+        insertShift.run(
+          employeeId,
+          shiftDate,
+          shiftType,
+          templateId,
+          `${templateCode === 'DAY' ? 'Ca ngay' : 'Ca dem'} - ${contract.contract_code}`,
+          companyId,
+          contractId,
+          member.assignment_role || 'guard'
+        );
+      });
+    });
+  });
+
+  internalShiftPlans.forEach((plan) => {
+    const employeeId = employeeIds[plan.employee_key];
+    const templateId = shiftTemplateIds[plan.shift_template_code];
+    const shiftType = shiftTypeByTemplateCode[plan.shift_template_code];
+    const assignmentRole = plan.employee_key.startsWith('hr_') ? 'hr' : 'guard';
+
+    if (!employeeId || !templateId) {
+      throw new Error(`Invalid internal shift plan for ${plan.employee_key}`);
+    }
+
+    iterDateRange(plan.date_from, plan.date_to, (shiftDate) => {
+      reserveAssignment(employeeId, shiftDate, `internal:${plan.employee_key}`);
+      insertShift.run(
+        employeeId,
+        shiftDate,
+        shiftType,
+        templateId,
+        plan.note || 'Ca noi bo cong ty',
+        null,
+        null,
+        assignmentRole
+      );
     });
   });
 

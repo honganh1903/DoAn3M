@@ -66,6 +66,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS contracts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     company_id INTEGER NOT NULL,
+    shift_template_id INTEGER,
     contract_code TEXT NOT NULL UNIQUE,
     service_name TEXT,
     start_date TEXT,
@@ -75,7 +76,8 @@ db.exec(`
     status TEXT DEFAULT 'active',
     note TEXT,
     created_at TEXT DEFAULT (datetime('now')),
-    FOREIGN KEY (company_id) REFERENCES partner_companies(id)
+    FOREIGN KEY (company_id) REFERENCES partner_companies(id),
+    FOREIGN KEY (shift_template_id) REFERENCES shift_templates(id)
   );
 
   CREATE TABLE IF NOT EXISTS salaries (
@@ -188,6 +190,8 @@ ensureColumn('employees', 'employee_type', "TEXT DEFAULT 'guard'");
 
 ensureColumn('accounts', 'avatar_url', 'TEXT');
 ensureColumn('accounts', 'can_manage_salary', 'INTEGER DEFAULT 0');
+
+ensureColumn('contracts', 'shift_template_id', 'INTEGER REFERENCES shift_templates(id)');
 
 ensureColumn('shifts', 'company_id', 'INTEGER REFERENCES partner_companies(id)');
 ensureColumn('shifts', 'contract_id', 'INTEGER REFERENCES contracts(id)');
@@ -376,6 +380,17 @@ db.exec(`
 `);
 
 normalizeShiftData();
+
+db.exec(`
+  UPDATE contracts
+  SET shift_template_id = (
+    SELECT id
+    FROM shift_templates
+    WHERE code = 'DAY'
+    LIMIT 1
+  )
+  WHERE shift_template_id IS NULL
+`);
 
 db.exec(`
   UPDATE shift_templates

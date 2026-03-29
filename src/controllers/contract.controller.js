@@ -4,9 +4,10 @@ const getAll = (req, res) => {
   try {
     const { company_id, status } = req.query;
     let query = `
-      SELECT ct.*, c.company_name
+      SELECT ct.*, c.company_name, st.code AS shift_code, st.name AS shift_name
       FROM contracts ct
       JOIN partner_companies c ON c.id = ct.company_id
+      LEFT JOIN shift_templates st ON st.id = ct.shift_template_id
       WHERE 1=1
     `;
     const params = [];
@@ -39,12 +40,13 @@ const create = (req, res) => {
       end_date,
       guard_quantity,
       monthly_value,
+      shift_template_id,
       status,
       note
     } = req.body;
 
-    if (!company_id || !contract_code) {
-      return res.status(400).json({ success: false, message: 'company_id and contract_code are required' });
+    if (!company_id || !contract_code || !shift_template_id) {
+      return res.status(400).json({ success: false, message: 'company_id, contract_code, and shift_template_id are required' });
     }
 
     const company = db.prepare('SELECT id FROM partner_companies WHERE id = ?').get(company_id);
@@ -52,11 +54,17 @@ const create = (req, res) => {
       return res.status(404).json({ success: false, message: 'Partner company does not exist' });
     }
 
+    const template = db.prepare("SELECT id FROM shift_templates WHERE id = ? AND status = 'active'").get(shift_template_id);
+    if (!template) {
+      return res.status(400).json({ success: false, message: 'Shift template does not exist or inactive' });
+    }
+
     const result = db.prepare(`
-      INSERT INTO contracts (company_id, contract_code, service_name, start_date, end_date, guard_quantity, monthly_value, status, note)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO contracts (company_id, shift_template_id, contract_code, service_name, start_date, end_date, guard_quantity, monthly_value, status, note)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       company_id,
+      shift_template_id,
       contract_code,
       service_name || null,
       start_date || null,
@@ -90,6 +98,7 @@ const update = (req, res) => {
       end_date: req.body.end_date ?? existing.end_date,
       guard_quantity: req.body.guard_quantity ?? existing.guard_quantity,
       monthly_value: req.body.monthly_value ?? existing.monthly_value,
+      shift_template_id: req.body.shift_template_id ?? existing.shift_template_id,
       status: req.body.status ?? existing.status,
       note: req.body.note ?? existing.note
     };
@@ -99,10 +108,15 @@ const update = (req, res) => {
       return res.status(404).json({ success: false, message: 'Partner company does not exist' });
     }
 
+    const template = db.prepare("SELECT id FROM shift_templates WHERE id = ? AND status = 'active'").get(payload.shift_template_id);
+    if (!template) {
+      return res.status(400).json({ success: false, message: 'Shift template does not exist or inactive' });
+    }
+
     db.prepare(`
       UPDATE contracts
       SET company_id = ?, contract_code = ?, service_name = ?, start_date = ?, end_date = ?,
-          guard_quantity = ?, monthly_value = ?, status = ?, note = ?
+          guard_quantity = ?, monthly_value = ?, shift_template_id = ?, status = ?, note = ?
       WHERE id = ?
     `).run(
       payload.company_id,
@@ -112,6 +126,7 @@ const update = (req, res) => {
       payload.end_date,
       payload.guard_quantity,
       payload.monthly_value,
+      payload.shift_template_id,
       payload.status,
       payload.note,
       contractId
