@@ -15,6 +15,9 @@ const now = new Date();
 const nowMonth = toYearMonth(now);
 const prevMonth = toYearMonth(new Date(now.getFullYear(), now.getMonth() - 1, 1));
 const prev2Month = toYearMonth(new Date(now.getFullYear(), now.getMonth() - 2, 1));
+const prev3Month = toYearMonth(new Date(now.getFullYear(), now.getMonth() - 3, 1));
+const prev4Month = toYearMonth(new Date(now.getFullYear(), now.getMonth() - 4, 1));
+const prev5Month = toYearMonth(new Date(now.getFullYear(), now.getMonth() - 5, 1));
 const currentYear = now.getFullYear();
 const nowDateTime = toDateTime(now);
 
@@ -36,6 +39,22 @@ const getMonthRangeByOffset = (offset) => {
     start: `${ym}-01`,
     end: `${ym}-${String(lastDay).padStart(2, '0')}`
   };
+};
+const getNthWeekdayInMonth = (yearMonth, nth) => {
+  const [y, m] = yearMonth.split('-').map(Number);
+  const lastDay = new Date(y, m, 0).getDate();
+  let found = 0;
+  for (let day = 1; day <= lastDay; day += 1) {
+    const dt = new Date(y, m - 1, day);
+    const dow = dt.getDay();
+    if (dow >= 1 && dow <= 5) {
+      found += 1;
+      if (found === nth) {
+        return `${yearMonth}-${String(day).padStart(2, '0')}`;
+      }
+    }
+  }
+  return `${yearMonth}-01`;
 };
 
 const iterDateRange = (dateFrom, dateTo, callback) => {
@@ -194,28 +213,77 @@ const contractMemberPlans = {
   ]
 };
 
-const internalShiftPlans = [];
+const internalShiftPlans = [
+  {
+    employee_key: 'guard_09',
+    shift_template_code: 'DAY',
+    date_from: `${m0.ym}-03`,
+    date_to: `${m0.ym}-18`,
+    note: 'Ca noi bo - khu van phong'
+  },
+  {
+    employee_key: 'guard_10',
+    shift_template_code: 'NIGHT',
+    date_from: `${m0.ym}-05`,
+    date_to: `${m0.ym}-20`,
+    note: 'Ca noi bo - cong sau'
+  },
+  {
+    employee_key: 'hr_02',
+    shift_template_code: 'DAY',
+    date_from: `${m0.ym}-10`,
+    date_to: `${m0.ym}-14`,
+    note: 'Ca hanh chinh ho tro van hanh'
+  },
+  {
+    employee_key: 'guard_09',
+    shift_template_code: 'DAY',
+    date_from: `${m1.ym}-02`,
+    date_to: `${m1.ym}-12`,
+    note: 'Ca noi bo - thang tiep theo'
+  }
+];
 
 const shiftTemplates = [
   { code: 'DAY', name: 'Ca Ngay', check_in_time: '08:00', check_out_time: '17:00', work_pattern: 'daily', note: 'Ca ngay mac dinh' },
   { code: 'NIGHT', name: 'Ca Dem', check_in_time: '22:00', check_out_time: '06:00', work_pattern: 'daily', note: 'Ca dem mac dinh' }
 ];
 
+const leaveDates = {
+  now_02: getNthWeekdayInMonth(nowMonth, 2),
+  now_04: getNthWeekdayInMonth(nowMonth, 4),
+  now_05: getNthWeekdayInMonth(nowMonth, 5),
+  now_06: getNthWeekdayInMonth(nowMonth, 6),
+  now_07: getNthWeekdayInMonth(nowMonth, 7),
+  now_08: getNthWeekdayInMonth(nowMonth, 8),
+  now_09: getNthWeekdayInMonth(nowMonth, 9),
+  now_10: getNthWeekdayInMonth(nowMonth, 10),
+  prev_04: getNthWeekdayInMonth(prevMonth, 4),
+  prev_07: getNthWeekdayInMonth(prevMonth, 7),
+  prev2_03: getNthWeekdayInMonth(prev2Month, 3)
+};
+
 const leaveSeeds = [
-  { employee_key: 'guard_02', leave_date: `${nowMonth}-14`, duration_type: 'full_day', reason: 'Nghi phep viec gia dinh', status: 'approved', approved_by_username: 'admin', reject_reason: null },
-  { employee_key: 'guard_04', leave_date: `${nowMonth}-16`, duration_type: 'half_day_morning', reason: 'Kham suc khoe dinh ky', status: 'pending', approved_by_username: null, reject_reason: null },
-  { employee_key: 'guard_05', leave_date: `${nowMonth}-18`, duration_type: 'half_day_afternoon', reason: 'Viec ca nhan', status: 'rejected', approved_by_username: 'admin', reject_reason: 'Khong du nguoi thay ca' },
-  { employee_key: 'guard_07', leave_date: `${nowMonth}-20`, duration_type: 'full_day', reason: 'Nghi phep ca nhan', status: 'approved', approved_by_username: 'admin', reject_reason: null },
-  { employee_key: 'guard_08', leave_date: `${nowMonth}-21`, duration_type: 'half_day_afternoon', reason: 'Di kham benh', status: 'approved', approved_by_username: 'admin', reject_reason: null },
-  { employee_key: 'guard_09', leave_date: `${nowMonth}-22`, duration_type: 'half_day_morning', reason: 'Lam thu tuc hanh chinh', status: 'pending', approved_by_username: null, reject_reason: null },
-  { employee_key: 'hr_02', leave_date: `${nowMonth}-23`, duration_type: 'full_day', reason: 'Nghi phep nam', status: 'approved', approved_by_username: 'admin', reject_reason: null }
+  { employee_key: 'guard_02', leave_date: leaveDates.now_02, duration_type: 'full_day', reason: 'Nghi phep viec gia dinh', status: 'approved', approved_by_username: 'admin', reject_reason: null },
+  { employee_key: 'guard_04', leave_date: leaveDates.now_04, duration_type: 'half_day_morning', reason: 'Kham suc khoe dinh ky', status: 'pending', approved_by_username: null, reject_reason: null },
+  { employee_key: 'guard_05', leave_date: leaveDates.now_05, duration_type: 'half_day_afternoon', reason: 'Viec ca nhan', status: 'rejected', approved_by_username: 'admin', reject_reason: 'Khong du nguoi thay ca' },
+  { employee_key: 'guard_07', leave_date: leaveDates.now_06, duration_type: 'full_day', reason: 'Nghi phep ca nhan', status: 'approved', approved_by_username: 'admin', reject_reason: null },
+  { employee_key: 'guard_08', leave_date: leaveDates.now_07, duration_type: 'half_day_afternoon', reason: 'Di kham benh', status: 'approved', approved_by_username: 'admin', reject_reason: null },
+  { employee_key: 'guard_09', leave_date: leaveDates.now_08, duration_type: 'half_day_morning', reason: 'Lam thu tuc hanh chinh', status: 'pending', approved_by_username: null, reject_reason: null },
+  { employee_key: 'hr_02', leave_date: leaveDates.now_09, duration_type: 'full_day', reason: 'Nghi phep nam', status: 'approved', approved_by_username: 'admin', reject_reason: null },
+  { employee_key: 'guard_01', leave_date: leaveDates.prev_04, duration_type: 'full_day', reason: 'Nghi benh ngan ngay', status: 'approved', approved_by_username: 'admin', reject_reason: null },
+  { employee_key: 'guard_03', leave_date: leaveDates.prev_07, duration_type: 'half_day_morning', reason: 'Di tai kham', status: 'approved', approved_by_username: 'admin', reject_reason: null },
+  { employee_key: 'guard_06', leave_date: leaveDates.prev2_03, duration_type: 'half_day_afternoon', reason: 'Viec gia dinh', status: 'approved', approved_by_username: 'admin', reject_reason: null },
+  { employee_key: 'guard_10', leave_date: leaveDates.now_10, duration_type: 'full_day', reason: 'Nghi phep dot xuat', status: 'rejected', approved_by_username: 'admin', reject_reason: 'Khong co nguoi thay the' }
 ];
 
 const announcementSeeds = [
   { created_by_employee_key: 'hr_01', title: 'Thong bao kiem tra dong phuc', content: 'Tat ca nhan vien bao ve thuc hien dong phuc dung quy dinh.', status: 'approved', approved_by_username: 'admin', reject_reason: null, published_at: nowDateTime },
   { created_by_employee_key: 'hr_01', title: 'Lich hop giao ban thang', content: 'Hop giao ban luc 09:00 sang thu 2 dau thang tai van phong.', status: 'pending', approved_by_username: null, reject_reason: null, published_at: null },
   { created_by_employee_key: 'guard_03', title: 'De xuat bo sung camera cong phu', content: 'De xuat bo sung 2 camera tai khu cong phu de giam sat xe vao.', status: 'rejected', approved_by_username: 'admin', reject_reason: 'Can bo sung chi phi va vi tri lap dat', published_at: null },
-  { created_by_employee_key: 'hr_02', title: 'Thong bao quy trinh ban giao ca', content: 'Ca truoc phai ban giao day du so truc va su kien cho ca sau.', status: 'approved', approved_by_username: 'admin', reject_reason: null, published_at: nowDateTime }
+  { created_by_employee_key: 'hr_02', title: 'Thong bao quy trinh ban giao ca', content: 'Ca truoc phai ban giao day du so truc va su kien cho ca sau.', status: 'approved', approved_by_username: 'admin', reject_reason: null, published_at: nowDateTime },
+  { created_by_employee_key: 'hr_02', title: 'Cap nhat noi quy checkin checkout', content: 'Nhan vien can checkin checkout dung gio va cap nhat du lieu day du.', status: 'approved', approved_by_username: 'admin', reject_reason: null, published_at: nowDateTime },
+  { created_by_employee_key: 'guard_05', title: 'Bao cao su co khu B2', content: 'Co su co bat thuong tai khu B2 luc 02:15, da xu ly an toan.', status: 'approved', approved_by_username: 'admin', reject_reason: null, published_at: nowDateTime }
 ];
 
 const employeeByCard = db.prepare('SELECT id FROM employees WHERE id_card = ?');
@@ -527,12 +595,15 @@ const seed = db.transaction(() => {
   salaryProfiles.hr_01 = { base: 12000000, bonus: 700000 };
   salaryProfiles.hr_02 = { base: 11000000, bonus: 550000 };
 
-  const salaryMonths = [prev2Month, prevMonth, nowMonth];
+  const salaryMonths = [prev5Month, prev4Month, prev3Month, prev2Month, prevMonth, nowMonth];
   Object.keys(salaryProfiles).forEach((employeeKey) => {
     const employeeId = employeeIds[employeeKey];
     const profile = salaryProfiles[employeeKey];
+    const currentMonthIndex = salaryMonths.length - 1;
     salaryMonths.forEach((month, monthIndex) => {
-      const deduction = monthIndex === 2 ? (employeeKey.startsWith('guard') ? (monthIndex + employeeId) % 3 * 50000 : 0) : 0;
+      const deduction = monthIndex === currentMonthIndex
+        ? (employeeKey.startsWith('guard') ? (monthIndex + employeeId) % 4 * 50000 : 0)
+        : ((employeeKey.startsWith('guard') && monthIndex % 2 === 0) ? 50000 : 0);
       const paid = month === nowMonth ? 0 : 1;
       const total = profile.base + profile.bonus - deduction;
       upsertSalary.run(employeeId, month, profile.base, profile.bonus, deduction, total, `Luong thang ${month}`, paid);
@@ -703,6 +774,27 @@ const seed = db.transaction(() => {
     WHERE lower(COALESCE(shift_type, '')) = 'night'
       AND (check_in_time_actual IS NULL OR check_out_time_actual IS NULL);
   `);
+
+  // Force test cases for salary attendance:
+  // - approved leave day should still count as attendance (guard_02 full day, guard_08 half day)
+  // - missing check without approved leave should be counted as missing workday (guard_10)
+  db.prepare(`
+    UPDATE shifts
+    SET check_in_time_actual = NULL, check_out_time_actual = NULL
+    WHERE employee_id = ? AND shift_date = ?
+  `).run(employeeIds.guard_02, leaveDates.now_02);
+
+  db.prepare(`
+    UPDATE shifts
+    SET check_in_time_actual = NULL, check_out_time_actual = NULL
+    WHERE employee_id = ? AND shift_date = ?
+  `).run(employeeIds.guard_08, leaveDates.now_07);
+
+  db.prepare(`
+    UPDATE shifts
+    SET check_in_time_actual = NULL, check_out_time_actual = NULL
+    WHERE employee_id = ? AND shift_date = ?
+  `).run(employeeIds.guard_10, leaveDates.now_09);
 
   const targetYears = [currentYear - 1, currentYear];
   Object.values(employeeIds).forEach((employeeId) => {
