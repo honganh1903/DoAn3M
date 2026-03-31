@@ -46,6 +46,45 @@ const iterDateRange = (dateFrom, dateTo, callback) => {
     current.setDate(current.getDate() + 1);
   }
 };
+const toDateTimeLocalText = (dateObj) => {
+  const y = dateObj.getFullYear();
+  const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const d = String(dateObj.getDate()).padStart(2, '0');
+  const hh = String(dateObj.getHours()).padStart(2, '0');
+  const mm = String(dateObj.getMinutes()).padStart(2, '0');
+  const ss = String(dateObj.getSeconds()).padStart(2, '0');
+  return `${y}-${m}-${d} ${hh}:${mm}:${ss}`;
+};
+const parseLocalDateTime = (dateText, hh, mm = 0) => {
+  const [y, m, d] = dateText.split('-').map(Number);
+  return new Date(y, m - 1, d, hh, mm, 0, 0);
+};
+const buildActualCheckTimes = (templateCode, shiftDate, employeeId) => {
+  const seedNum = Number(employeeId) + Number(shiftDate.slice(-2));
+  const inOffset = (seedNum % 21) - 10; // [-10..10] minutes
+  const outOffset = ((seedNum * 3) % 31) - 15; // [-15..15] minutes
+
+  if (templateCode === 'NIGHT') {
+    const checkInBase = parseLocalDateTime(shiftDate, 22, 0);
+    const checkOutBase = parseLocalDateTime(shiftDate, 6, 0);
+    checkOutBase.setDate(checkOutBase.getDate() + 1);
+    checkInBase.setMinutes(checkInBase.getMinutes() + inOffset);
+    checkOutBase.setMinutes(checkOutBase.getMinutes() + outOffset);
+    return {
+      check_in_time_actual: toDateTimeLocalText(checkInBase),
+      check_out_time_actual: toDateTimeLocalText(checkOutBase)
+    };
+  }
+
+  const checkInBase = parseLocalDateTime(shiftDate, 8, 0);
+  const checkOutBase = parseLocalDateTime(shiftDate, 17, 0);
+  checkInBase.setMinutes(checkInBase.getMinutes() + inOffset);
+  checkOutBase.setMinutes(checkOutBase.getMinutes() + outOffset);
+  return {
+    check_in_time_actual: toDateTimeLocalText(checkInBase),
+    check_out_time_actual: toDateTimeLocalText(checkOutBase)
+  };
+};
 
 const m0 = getMonthRangeByOffset(0);
 const m1 = getMonthRangeByOffset(1);
@@ -258,8 +297,12 @@ const upsertSalary = db.prepare(`
 `);
 
 const insertShift = db.prepare(`
-  INSERT INTO shifts (employee_id, shift_date, shift_type, shift_template_id, note, company_id, contract_id, assignment_role)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  INSERT INTO shifts (
+    employee_id, shift_date, shift_type, shift_template_id,
+    check_in_time_actual, check_out_time_actual,
+    note, company_id, contract_id, assignment_role
+  )
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `);
 
 const insertLeave = db.prepare(`
@@ -531,11 +574,14 @@ const seed = db.transaction(() => {
 
       iterDateRange(contract.start_date, contract.end_date, (shiftDate) => {
         reserveAssignment(employeeId, shiftDate, contract.contract_code);
+        const actualTimes = buildActualCheckTimes(templateCode, shiftDate, employeeId);
         insertShift.run(
           employeeId,
           shiftDate,
           shiftType,
           templateId,
+          actualTimes.check_in_time_actual,
+          actualTimes.check_out_time_actual,
           `${templateCode === 'DAY' ? 'Ca ngay' : 'Ca dem'} - ${contract.contract_code}`,
           companyId,
           contractId,
@@ -557,11 +603,14 @@ const seed = db.transaction(() => {
 
     iterDateRange(plan.date_from, plan.date_to, (shiftDate) => {
       reserveAssignment(employeeId, shiftDate, `internal:${plan.employee_key}`);
+      const actualTimes = buildActualCheckTimes(plan.shift_template_code, shiftDate, employeeId);
       insertShift.run(
         employeeId,
         shiftDate,
         shiftType,
         templateId,
+        actualTimes.check_in_time_actual,
+        actualTimes.check_out_time_actual,
         plan.note || 'Ca noi bo cong ty',
         null,
         null,
@@ -639,6 +688,20 @@ const seed = db.transaction(() => {
           WHERE ct.id = shifts.contract_id
         )
       );
+  `);
+
+  db.exec(`
+    UPDATE shifts
+    SET check_in_time_actual = shift_date || ' 08:00:00',
+        check_out_time_actual = shift_date || ' 17:00:00'
+    WHERE lower(COALESCE(shift_type, '')) = 'day'
+      AND (check_in_time_actual IS NULL OR check_out_time_actual IS NULL);
+
+    UPDATE shifts
+    SET check_in_time_actual = shift_date || ' 22:00:00',
+        check_out_time_actual = date(shift_date, '+1 day') || ' 06:00:00'
+    WHERE lower(COALESCE(shift_type, '')) = 'night'
+      AND (check_in_time_actual IS NULL OR check_out_time_actual IS NULL);
   `);
 
   const targetYears = [currentYear - 1, currentYear];

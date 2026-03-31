@@ -1,10 +1,12 @@
 const db = require('../config/db');
+const xlsx = require('xlsx');
 
 const NAME_SQL = "COALESCE(NULLIF(TRIM(COALESCE(e.first_name, '') || ' ' || COALESCE(e.last_name, '')), ''), e.full_name, '')";
 const VALID_SHIFT_CODES = ['DAY', 'NIGHT'];
 const VALID_WORK_PATTERNS = ['daily'];
 const getShiftTypeFromTemplate = (template) => (template?.code === 'NIGHT' ? 'night' : 'day');
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const DATETIME_RE = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?$/;
 const toLocalDateText = (dateObj) => {
   const y = dateObj.getFullYear();
   const m = String(dateObj.getMonth() + 1).padStart(2, '0');
@@ -85,16 +87,80 @@ const iterateDateRange = (dateFrom, dateTo, callback) => {
     current.setDate(current.getDate() + 1);
   }
 };
+const toDateTimeText = (dateObj) => {
+  const yyyy = dateObj.getFullYear();
+  const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const dd = String(dateObj.getDate()).padStart(2, '0');
+  const hh = String(dateObj.getHours()).padStart(2, '0');
+  const mi = String(dateObj.getMinutes()).padStart(2, '0');
+  const ss = String(dateObj.getSeconds()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
+};
+const normalizeDateTimeInput = (value) => {
+  if (value === undefined) {
+    return { ok: true, value: undefined };
+  }
+  if (value === null || String(value).trim() === '') {
+    return { ok: true, value: null };
+  }
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return { ok: true, value: toDateTimeText(value) };
+  }
+
+  const raw = String(value).trim();
+  if (DATETIME_RE.test(raw)) {
+    return { ok: true, value: raw.replace('T', ' ').length === 16 ? `${raw.replace('T', ' ')}:00` : raw.replace('T', ' ') };
+  }
+
+  const ddmmyyyy = /^(\d{2})\/(\d{2})\/(\d{4})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/.exec(raw);
+  if (ddmmyyyy) {
+    const [, dd, mm, yyyy, hh, mi, ss = '00'] = ddmmyyyy;
+    return { ok: true, value: `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}` };
+  }
+
+  return { ok: false, message: 'Datetime must be YYYY-MM-DD HH:mm[:ss] or DD/MM/YYYY HH:mm[:ss]' };
+};
+const getFirstNonEmpty = (row, keys) => {
+  for (const key of keys) {
+    if (!Object.prototype.hasOwnProperty.call(row, key)) continue;
+    const value = row[key];
+    if (value === undefined || value === null) continue;
+    if (typeof value === 'string' && value.trim() === '') continue;
+    return value;
+  }
+  return undefined;
+};
 const ASSIGNMENT_SELECT = `
-  SELECT s.id, s.employee_id, s.shift_date, s.shift_type, s.shift_template_id, s.note,
+  SELECT s.id, s.employee_id, s.shift_date, s.shift_type, s.shift_template_id,
+         s.check_in_time_actual, s.check_out_time_actual, s.note,
          s.company_id, s.contract_id, s.assignment_role, s.created_at,
          ${NAME_SQL} AS full_name, c.company_name, ct.contract_code,
          st.code AS shift_code, st.name AS shift_name
 `;
 
+const shouldExportExcel = (req) => String(req.query.export || '').trim().toLowerCase() === 'excel';
+const sendExcel = (res, fileName, sheets) => {
+  const workbook = xlsx.utils.book_new();
+
+  sheets.forEach((sheet) => {
+    const rows = Array.isArray(sheet.rows) ? sheet.rows : [];
+    const safeRows = rows.length > 0 ? rows : [{ message: 'No data' }];
+    const worksheet = xlsx.utils.json_to_sheet(safeRows);
+    xlsx.utils.book_append_sheet(workbook, worksheet, sheet.name || 'Sheet1');
+  });
+
+  const buffer = xlsx.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename=\"${fileName}.xlsx\"`);
+  return res.send(buffer);
+};
+
 const listTemplates = (req, res) => {
   try {
     const templates = db.prepare('SELECT * FROM shift_templates ORDER BY id ASC').all();
+    if (shouldExportExcel(req)) {
+      return sendExcel(res, 'shift_templates', [{ name: 'templates', rows: templates }]);
+    }
     return res.json({ success: true, data: templates });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
@@ -107,6 +173,10 @@ const getTemplateById = (req, res) => {
 
     if (!template) {
       return res.status(404).json({ success: false, message: 'Shift template not found' });
+    }
+
+    if (shouldExportExcel(req)) {
+      return sendExcel(res, `shift_template_${template.id}`, [{ name: 'template', rows: [template] }]);
     }
 
     return res.json({ success: true, data: template });
@@ -310,6 +380,9 @@ const getAll = (req, res) => {
     query += ' ORDER BY s.shift_date DESC, s.id DESC';
 
     const shifts = db.prepare(query).all(...params);
+    if (shouldExportExcel(req)) {
+      return sendExcel(res, 'shift_assignments', [{ name: 'assignments', rows: shifts }]);
+    }
     return res.json({ success: true, data: shifts });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
@@ -361,6 +434,10 @@ const getMine = (req, res) => {
     const shifts = db
       .prepare(query)
       .all(...params);
+
+    if (shouldExportExcel(req)) {
+      return sendExcel(res, `my_shift_assignments_${req.user.employee_id}`, [{ name: 'assignments', rows: shifts }]);
+    }
 
     return res.json({ success: true, data: shifts });
   } catch (err) {
@@ -590,6 +667,27 @@ const getAssignmentCandidates = (req, res) => {
       return item.assignment_status === requestedStatus;
     });
 
+    if (shouldExportExcel(req)) {
+      const exportRows = candidates.map((item) => ({
+        employee_id: item.employee_id,
+        full_name: item.full_name,
+        employee_type: item.employee_type,
+        employee_status: item.employee_status,
+        assignment_status: item.assignment_status,
+        total_days: item.metrics.total_days,
+        available_days: item.metrics.available_days,
+        blocked_days: item.metrics.blocked_days,
+        first_conflict_date: item.first_conflict?.shift_date || null,
+        first_conflict_reason: item.first_conflict?.reason || null,
+        existing_shift_id: item.existing_assignment?.shift_id || null,
+        existing_company_id: item.existing_assignment?.company_id || null,
+        existing_company_name: item.existing_assignment?.company_name || null,
+        existing_contract_id: item.existing_assignment?.contract_id || null,
+        existing_contract_code: item.existing_assignment?.contract_code || null
+      }));
+      return sendExcel(res, 'assignment_candidates', [{ name: 'candidates', rows: exportRows }]);
+    }
+
     return res.json({
       success: true,
       data: {
@@ -669,6 +767,9 @@ const getByEmployee = (req, res) => {
     query += ' ORDER BY s.shift_date DESC, s.id DESC';
 
     const shifts = db.prepare(query).all(...params);
+    if (shouldExportExcel(req)) {
+      return sendExcel(res, `employee_${employeeId}_assignments`, [{ name: 'assignments', rows: shifts }]);
+    }
 
     return res.json({ success: true, data: shifts });
   } catch (err) {
@@ -678,7 +779,7 @@ const getByEmployee = (req, res) => {
 
 const create = (req, res) => {
   try {
-    const { employee_id, shift_date, shift_template_id, note } = req.body;
+    const { employee_id, shift_date, shift_template_id, note, check_in_time_actual, check_out_time_actual } = req.body;
 
     if (Object.prototype.hasOwnProperty.call(req.body, 'contract_id')) {
       return res.status(400).json({
@@ -702,6 +803,15 @@ const create = (req, res) => {
       return res.status(400).json({ success: false, message: validationMessage });
     }
 
+    const normalizedCheckIn = normalizeDateTimeInput(check_in_time_actual);
+    if (!normalizedCheckIn.ok) {
+      return res.status(400).json({ success: false, message: `check_in_time_actual invalid: ${normalizedCheckIn.message}` });
+    }
+    const normalizedCheckOut = normalizeDateTimeInput(check_out_time_actual);
+    if (!normalizedCheckOut.ok) {
+      return res.status(400).json({ success: false, message: `check_out_time_actual invalid: ${normalizedCheckOut.message}` });
+    }
+
     const template = getTemplate(resolvedShiftTemplateId);
 
     const employee = getEmployee(employee_id);
@@ -710,14 +820,17 @@ const create = (req, res) => {
     const result = db
       .prepare(`
         INSERT INTO shifts (
-          employee_id, shift_date, shift_type, shift_template_id, note, company_id, contract_id, assignment_role
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          employee_id, shift_date, shift_type, shift_template_id, check_in_time_actual, check_out_time_actual,
+          note, company_id, contract_id, assignment_role
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       .run(
         employee_id,
         shift_date,
         getShiftTypeFromTemplate(template),
         resolvedShiftTemplateId,
+        normalizedCheckIn.value ?? null,
+        normalizedCheckOut.value ?? null,
         note || null,
         null,
         null,
@@ -744,6 +857,8 @@ const update = (req, res) => {
       employee_id: req.body.employee_id ?? existing.employee_id,
       shift_date: req.body.shift_date ?? existing.shift_date,
       shift_template_id: req.body.shift_template_id ?? existing.shift_template_id,
+      check_in_time_actual: req.body.check_in_time_actual ?? existing.check_in_time_actual,
+      check_out_time_actual: req.body.check_out_time_actual ?? existing.check_out_time_actual,
       note: req.body.note ?? existing.note,
       company_id: req.body.company_id ?? existing.company_id,
       contract_id: req.body.contract_id ?? existing.contract_id,
@@ -771,6 +886,15 @@ const update = (req, res) => {
       return res.status(400).json({ success: false, message: validationMessage });
     }
 
+    const normalizedCheckIn = normalizeDateTimeInput(payload.check_in_time_actual);
+    if (!normalizedCheckIn.ok) {
+      return res.status(400).json({ success: false, message: `check_in_time_actual invalid: ${normalizedCheckIn.message}` });
+    }
+    const normalizedCheckOut = normalizeDateTimeInput(payload.check_out_time_actual);
+    if (!normalizedCheckOut.ok) {
+      return res.status(400).json({ success: false, message: `check_out_time_actual invalid: ${normalizedCheckOut.message}` });
+    }
+
     const template = getTemplate(payload.shift_template_id);
     const resolvedContract = payload.contract_id ? db.prepare('SELECT id, company_id FROM contracts WHERE id = ?').get(payload.contract_id) : null;
     const resolvedCompanyId = resolvedContract ? resolvedContract.company_id : (payload.company_id || null);
@@ -779,7 +903,8 @@ const update = (req, res) => {
 
     db.prepare(`
       UPDATE shifts
-      SET employee_id = ?, shift_date = ?, shift_type = ?, shift_template_id = ?, note = ?,
+      SET employee_id = ?, shift_date = ?, shift_type = ?, shift_template_id = ?,
+          check_in_time_actual = ?, check_out_time_actual = ?, note = ?,
           company_id = ?, contract_id = ?, assignment_role = ?
       WHERE id = ?
     `).run(
@@ -787,6 +912,8 @@ const update = (req, res) => {
       payload.shift_date,
       getShiftTypeFromTemplate(template),
       payload.shift_template_id,
+      normalizedCheckIn.value ?? null,
+      normalizedCheckOut.value ?? null,
       payload.note,
       resolvedCompanyId,
       payload.contract_id,
@@ -822,7 +949,9 @@ const createRange = (req, res) => {
       date_from,
       date_to,
       note,
-      shift_template_id
+      shift_template_id,
+      check_in_time_actual,
+      check_out_time_actual
     } = req.body;
 
     if (Object.prototype.hasOwnProperty.call(req.body, 'contract_id')) {
@@ -854,11 +983,20 @@ const createRange = (req, res) => {
     const shiftType = getShiftTypeFromTemplate(template);
     const employee = getEmployee(employee_id);
     const finalAssignmentRole = getDefaultAssignmentRole(employee?.employee_type);
+    const normalizedCheckIn = normalizeDateTimeInput(check_in_time_actual);
+    if (!normalizedCheckIn.ok) {
+      return res.status(400).json({ success: false, message: `check_in_time_actual invalid: ${normalizedCheckIn.message}` });
+    }
+    const normalizedCheckOut = normalizeDateTimeInput(check_out_time_actual);
+    if (!normalizedCheckOut.ok) {
+      return res.status(400).json({ success: false, message: `check_out_time_actual invalid: ${normalizedCheckOut.message}` });
+    }
 
     const insertStmt = db.prepare(`
       INSERT INTO shifts (
-        employee_id, shift_date, shift_type, shift_template_id, note, company_id, contract_id, assignment_role
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        employee_id, shift_date, shift_type, shift_template_id, check_in_time_actual, check_out_time_actual,
+        note, company_id, contract_id, assignment_role
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const tx = db.transaction(() => {
@@ -889,6 +1027,8 @@ const createRange = (req, res) => {
           shiftDate,
           shiftType,
           resolvedShiftTemplateId,
+          normalizedCheckIn.value ?? null,
+          normalizedCheckOut.value ?? null,
           note || null,
           null,
           null,
@@ -1048,6 +1188,25 @@ const getContractCandidates = (req, res) => {
         first_conflict: firstConflict
       };
     }).filter((item) => (suitableOnly ? item.suitable_for_full_range : true));
+
+    if (shouldExportExcel(req)) {
+      const candidateRows = candidates.map((item) => ({
+        employee_id: item.employee_id,
+        full_name: item.full_name,
+        employee_type: item.employee_type,
+        employee_status: item.employee_status,
+        suitable_for_full_range: item.suitable_for_full_range,
+        total_days: item.metrics.total_days,
+        available_days: item.metrics.available_days,
+        blocked_days: item.metrics.blocked_days,
+        first_conflict_date: item.first_conflict?.shift_date || null,
+        first_conflict_reason: item.first_conflict?.reason || null
+      }));
+      return sendExcel(res, `contract_${contract.id}_candidates`, [
+        { name: 'assigned_members', rows: assignedMembers },
+        { name: 'candidates', rows: candidateRows }
+      ]);
+    }
 
     return res.json({
       success: true,
@@ -1269,6 +1428,150 @@ const syncContractMembers = (req, res) => {
   }
 };
 
+const importCheckinCheckoutExcel = (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'Excel file is required (field name: file)' });
+    }
+
+    let xlsx;
+    try {
+      xlsx = require('xlsx');
+    } catch (err) {
+      return res.status(500).json({
+        success: false,
+        message: 'xlsx package is not installed. Run: npm install xlsx'
+      });
+    }
+
+    const workbook = xlsx.read(req.file.buffer, { type: 'buffer', cellDates: true });
+    const firstSheetName = workbook.SheetNames[0];
+    if (!firstSheetName) {
+      return res.status(400).json({ success: false, message: 'Excel file has no sheets' });
+    }
+
+    const worksheet = workbook.Sheets[firstSheetName];
+    const rows = xlsx.utils.sheet_to_json(worksheet, { defval: null, raw: false });
+    if (!rows.length) {
+      return res.status(400).json({ success: false, message: 'Excel sheet is empty' });
+    }
+
+    const updateById = db.prepare(`
+      UPDATE shifts
+      SET check_in_time_actual = ?, check_out_time_actual = ?
+      WHERE id = ?
+    `);
+    const updateByEmployeeDate = db.prepare(`
+      UPDATE shifts
+      SET check_in_time_actual = ?, check_out_time_actual = ?
+      WHERE employee_id = ? AND shift_date = ?
+    `);
+    const findById = db.prepare('SELECT id FROM shifts WHERE id = ?');
+    const findByEmployeeDate = db.prepare('SELECT id FROM shifts WHERE employee_id = ? AND shift_date = ?');
+
+    const summary = {
+      total_rows: rows.length,
+      updated: 0,
+      skipped: 0,
+      errors: 0,
+      error_rows: []
+    };
+
+    rows.forEach((row, index) => {
+      const rowNumber = index + 2;
+      const shiftIdRaw = getFirstNonEmpty(row, ['shift_id', 'shiftId', 'id']);
+      const employeeIdRaw = getFirstNonEmpty(row, ['employee_id', 'employeeId']);
+      const shiftDateRaw = getFirstNonEmpty(row, ['shift_date', 'shiftDate', 'date']);
+      const checkInRaw = getFirstNonEmpty(row, ['check_in_time_actual', 'checkin', 'check_in', 'checkin_time']);
+      const checkOutRaw = getFirstNonEmpty(row, ['check_out_time_actual', 'checkout', 'check_out', 'checkout_time']);
+
+      if (checkInRaw === undefined && checkOutRaw === undefined) {
+        summary.skipped += 1;
+        summary.error_rows.push({ row: rowNumber, reason: 'No checkin/checkout value provided' });
+        return;
+      }
+
+      const parsedIn = normalizeDateTimeInput(checkInRaw);
+      if (!parsedIn.ok) {
+        summary.errors += 1;
+        summary.error_rows.push({ row: rowNumber, reason: `Invalid checkin: ${parsedIn.message}` });
+        return;
+      }
+
+      const parsedOut = normalizeDateTimeInput(checkOutRaw);
+      if (!parsedOut.ok) {
+        summary.errors += 1;
+        summary.error_rows.push({ row: rowNumber, reason: `Invalid checkout: ${parsedOut.message}` });
+        return;
+      }
+
+      if (shiftIdRaw !== undefined && shiftIdRaw !== null && String(shiftIdRaw).trim() !== '') {
+        const shiftId = Number(shiftIdRaw);
+        if (!shiftId || !findById.get(shiftId)) {
+          summary.errors += 1;
+          summary.error_rows.push({ row: rowNumber, reason: `Shift not found by shift_id=${shiftIdRaw}` });
+          return;
+        }
+
+        const changed = updateById.run(parsedIn.value ?? null, parsedOut.value ?? null, shiftId).changes;
+        if (changed > 0) {
+          summary.updated += 1;
+        } else {
+          summary.skipped += 1;
+        }
+        return;
+      }
+
+      if (!employeeIdRaw || !shiftDateRaw || !DATE_RE.test(String(shiftDateRaw))) {
+        summary.errors += 1;
+        summary.error_rows.push({
+          row: rowNumber,
+          reason: 'Require shift_id OR (employee_id + shift_date in YYYY-MM-DD)'
+        });
+        return;
+      }
+
+      const employeeId = Number(employeeIdRaw);
+      if (!employeeId) {
+        summary.errors += 1;
+        summary.error_rows.push({ row: rowNumber, reason: 'employee_id must be a valid number' });
+        return;
+      }
+
+      const shiftRow = findByEmployeeDate.get(employeeId, String(shiftDateRaw));
+      if (!shiftRow) {
+        summary.errors += 1;
+        summary.error_rows.push({
+          row: rowNumber,
+          reason: `Shift not found by employee_id=${employeeId} and shift_date=${shiftDateRaw}`
+        });
+        return;
+      }
+
+      const changed = updateByEmployeeDate.run(
+        parsedIn.value ?? null,
+        parsedOut.value ?? null,
+        employeeId,
+        String(shiftDateRaw)
+      ).changes;
+
+      if (changed > 0) {
+        summary.updated += 1;
+      } else {
+        summary.skipped += 1;
+      }
+    });
+
+    return res.json({
+      success: true,
+      message: 'Checkin/checkout import processed',
+      data: summary
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 module.exports = {
   listTemplates,
   getTemplateById,
@@ -1281,6 +1584,7 @@ module.exports = {
   getMine,
   create,
   createRange,
+  importCheckinCheckoutExcel,
   getContractCandidates,
   syncContractMembers,
   update,

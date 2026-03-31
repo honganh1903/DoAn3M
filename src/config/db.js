@@ -100,6 +100,8 @@ db.exec(`
     shift_date TEXT NOT NULL,
     shift_type TEXT NOT NULL,
     shift_template_id INTEGER,
+    check_in_time_actual TEXT,
+    check_out_time_actual TEXT,
     note TEXT,
     created_at TEXT DEFAULT (datetime('now')),
     FOREIGN KEY (employee_id) REFERENCES employees(id),
@@ -197,6 +199,8 @@ ensureColumn('shifts', 'company_id', 'INTEGER REFERENCES partner_companies(id)')
 ensureColumn('shifts', 'contract_id', 'INTEGER REFERENCES contracts(id)');
 ensureColumn('shifts', 'assignment_role', "TEXT DEFAULT 'guard'");
 ensureColumn('shifts', 'shift_template_id', 'INTEGER REFERENCES shift_templates(id)');
+ensureColumn('shifts', 'check_in_time_actual', 'TEXT');
+ensureColumn('shifts', 'check_out_time_actual', 'TEXT');
 
 ensureColumn('shift_templates', 'work_pattern', "TEXT DEFAULT 'daily'");
 ensureColumn('shift_templates', 'status', "TEXT DEFAULT 'active'");
