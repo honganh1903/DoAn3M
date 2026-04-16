@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>DoAn3M - Database ERD</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; }
+
+    header {
+      background: #1e293b;
+      color: #f1f5f9;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    header h1 { font-size: 18px; font-weight: 600; }
+    header span { font-size: 13px; color: #94a3b8; }
+
+    .legend {
+      display: flex;
+      gap: 20px;
+      padding: 10px 24px;
+      background: #fff;
+      border-bottom: 1px solid #e2e8f0;
+      flex-wrap: wrap;
+    }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #475569; }
+    .legend-dot { width: 14px; height: 14px; border-radius: 3px; }
+
+    #canvas-wrap {
+      overflow: auto;
+      width: 100vw;
+      height: calc(100vh - 90px);
+      cursor: grab;
+      position: relative;
+    }
+    #canvas-wrap:active { cursor: grabbing; }
+
+    svg {
+      display: block;
+    }
+
+    /* Table cards */
+    .tbl-header { font-weight: 700; font-size: 13px; }
+    .tbl-row { font-size: 11.5px; }
+    .pk-badge { fill: #f59e0b; font-size: 9px; font-weight: 700; }
+    .fk-badge { fill: #6366f1; font-size: 9px; font-weight: 700; }
+
+    /* Edge labels */
+    .edge-label { font-size: 10px; fill: #64748b; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🗄️ DoAn3M — Database ERD</h1>
+  <span>Cuộn chuột để zoom · Kéo để di chuyển</span>
+</header>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#dbeafe;border:2px solid #3b82f6"></div> Nhân sự</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#dcfce7;border:2px solid #22c55e"></div> Lương & Chấm công</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#fef9c3;border:2px solid #eab308"></div> Đối tác & Hợp đồng DV</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#fce7f3;border:2px solid #ec4899"></div> Thông báo</div>
+  <div class="legend-item"><span style="color:#f59e0b;font-weight:700">PK</span> Primary Key</div>
+  <div class="legend-item"><span style="color:#6366f1;font-weight:700">FK</span> Foreign Key</div>
+</div>
+
+<div id="canvas-wrap">
+  <svg id="erd" xmlns="http://www.w3.org/2000/svg"></svg>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// DATA
+// ─────────────────────────────────────────────
+const TABLES = [
+  {
+    id: 'employees', label: 'employees', group: 'hr',
+    fields: [
+      { name: 'id', type: 'INTEGER', pk: true },
+      { name: 'first_name', type: 'TEXT' },
+      { name: 'last_name', type: 'TEXT' },
+      { name: 'full_name', type: 'TEXT' },
+      { name: 'avatar_url', type: 'TEXT' },
+      { name: 'birth_date', type: 'TEXT' },
+      { name: 'gender', type: 'TEXT' },
+      { name: 'id_card', type: 'TEXT' },
+      { name: 'social_insurance_no', type: 'TEXT' },
+      { name: 'employee_type', type: 'TEXT' },
+      { name: 'phone', type: 'TEXT' },
+      { name: 'address', type: 'TEXT' },
+      { name: 'department', type: 'TEXT' },
+      { name: 'hire_date', type: 'TEXT' },
+      { name: 'status', type: 'TEXT' },
+      { name: 'created_at', type: 'TEXT' },
+    ]
+  },
+  {
+    id: 'accounts', label: 'accounts', group: 'hr',
+    fields: [
+      { name: 'id', type: 'INTEGER', pk: true },
+      { name: 'username', type: 'TEXT' },
+      { name: 'password', type: 'TEXT' },
+      { name: 'role', type: 'TEXT' },
+      { name: 'employee_id', type: 'INTEGER', fk: true },
+      { name: 'avatar_url', type: 'TEXT' },
+      { name: 'can_manage_salary', type: 'INTEGER' },
+      { name: 'created_at', type: 'TEXT' },
+      { name: 'is_active', type: 'INTEGER' },
+    ]
+  },
+  {
+    id: 'employee_contracts', label: 'employee_contracts', group: 'hr',
+    fields: [
+      { name: 'id', type: 'INTEGER', pk: true },
+      { name: 'employee_id', type: 'INTEGER', fk: true },
+      { name: 'contract_code', type: 'TEXT' },
+      { name: 'contract_type', type: 'TEXT' },
+      { name: 'position', type: 'TEXT' },
+      { name: 'department', type: 'TEXT' },
+      { name: 'base_salary', type: 'REAL' },
+      { name: 'allowance', type: 'REAL' },
+      { name: 'start_date', type: 'TEXT' },
+      { name: 'end_date', type: 'TEXT' },
+      { name: 'signing_date', type: 'TEXT' },
+      { name: 'signed_by', type: 'TEXT' },
+      { name: 'status', type: 'TEXT' },
+      { name: 'note', type: 'TEXT' },
+      { name: 'created_at', type: 'TEXT' },
+    ]
+  },
+  {
+    id: 'salaries', label: 'salaries', group: 'payroll',
+    fields: [
+      { name: 'id', type: 'INTEGER', pk: true },
+      { name: 'employee_id', type: 'INTEGER', fk: true },
+      { name: 'month', type: 'TEXT' },
+      { name: 'base_salary', type: 'REAL' },
+      { name: 'bonus', type: 'REAL' },
+      { name: 'deduction', type: 'REAL' },
+      { name: 'total', type: 'REAL' },
+      { name: 'note', type: 'TEXT' },
+      { name: 'paid', type: 'INTEGER' },
+      { name: 'created_at', type: 'TEXT' },
+    ]
+  },
+  {
+    id: 'shifts', label: 'shifts', group: 'payroll',
+    fields: [
+      { name: 'id', type: 'INTEGER', pk: true },
+      { name: 'employee_id', type: 'INTEGER', fk: true },
+      { name: 'shift_date', type: 'TEXT' },
+      { name: 'shift_type', type: 'TEXT' },
+      { name: 'shift_template_id', type: 'INTEGER', fk: true },
+      { name: 'check_in_time_actual', type: 'TEXT' },
+      { name: 'check_out_time_actual', type: 'TEXT' },
+      { name: 'note', type: 'TEXT' },
+      { name: 'company_id', type: 'INTEGER', fk: true },
+      { name: 'contract_id', type: 'INTEGER', fk: true },
+      { name: 'assignment_role', type: 'TEXT' },
+      { name: 'created_at', type: 'TEXT' },
+    ]
+  },
+  {
+    id: 'shift_templates', label: 'shift_templates', group: 'payroll',
+    fields: [
+      { name: 'id', type: 'INTEGER', pk: true },
+      { name: 'code', type: 'TEXT' },
+      { name: 'name', type: 'TEXT' },
+      { name: 'check_in_time', type: 'TEXT' },
+      { name: 'check_out_time', type: 'TEXT' },
+      { name: 'work_pattern', type: 'TEXT' },
+      { name: 'note', type: 'TEXT' },
+      { name: 'status', type: 'TEXT' },
+      { name: 'created_at', type: 'TEXT' },
+    ]
+  },
+  {
+    id: 'leave_requests', label: 'leave_requests', group: 'payroll',
+    fields: [
+      { name: 'id', type: 'INTEGER', pk: true },
+      { name: 'employee_id', type: 'INTEGER', fk: true },
+      { name: 'leave_date', type: 'TEXT' },
+      { name: 'duration_type', type: 'TEXT' },
+      { name: 'reason', type: 'TEXT' },
+      { name: 'status', type: 'TEXT' },
+      { name: 'approved_by', type: 'INTEGER', fk: true },
+      { name: 'approved_at', type: 'TEXT' },
+      { name: 'reject_reason', type: 'TEXT' },
+      { name: 'created_at', type: 'TEXT' },
+    ]
+  },
+  {
+    id: 'leave_balances', label: 'leave_balances', group: 'payroll',
+    fields: [
+      { name: 'id', type: 'INTEGER', pk: true },
+      { name: 'employee_id', type: 'INTEGER', fk: true },
+      { name: 'year', type: 'INTEGER' },
+      { name: 'total_days', type: 'REAL' },
+      { name: 'used_days', type: 'REAL' },
+      { name: 'remaining_days', type: 'REAL' },
+      { name: 'updated_at', type: 'TEXT' },
+    ]
+  },
+  {
+    id: 'partner_companies', label: 'partner_companies', group: 'partner',
+    fields: [
+      { name: 'id', type: 'INTEGER', pk: true },
+      { name: 'company_name', type: 'TEXT' },
+      { name: 'tax_code', type: 'TEXT' },
+      { name: 'contact_name', type: 'TEXT' },
+      { name: 'contact_phone', type: 'TEXT' },
+      { name: 'contact_email', type: 'TEXT' },
+      { name: 'address', type: 'TEXT' },
+      { name: 'status', type: 'TEXT' },
+      { name: 'note', type: 'TEXT' },
+      { name: 'created_at', type: 'TEXT' },
+    ]
+  },
+  {
+    id: 'contracts', label: 'contracts', group: 'partner',
+    fields: [
+      { name: 'id', type: 'INTEGER', pk: true },
+      { name: 'company_id', type: 'INTEGER', fk: true },
+      { name: 'shift_template_id', type: 'INTEGER', fk: true },
+      { name: 'contract_code', type: 'TEXT' },
+      { name: 'service_name', type: 'TEXT' },
+      { name: 'start_date', type: 'TEXT' },
+      { name: 'end_date', type: 'TEXT' },
+      { name: 'guard_quantity', type: 'INTEGER' },
+      { name: 'monthly_value', type: 'REAL' },
+      { name: 'status', type: 'TEXT' },
+      { name: 'note', type: 'TEXT' },
+      { name: 'created_at', type: 'TEXT' },
+    ]
+  },
+  {
+    id: 'announcements', label: 'announcements', group: 'announce',
+    fields: [
+      { name: 'id', type: 'INTEGER', pk: true },
+      { name: 'created_by_employee_id', type: 'INTEGER', fk: true },
+      { name: 'title', type: 'TEXT' },
+      { name: 'content', type: 'TEXT' },
+      { name: 'status', type: 'TEXT' },
+      { name: 'approved_by', type: 'INTEGER', fk: true },
+      { name: 'approved_at', type: 'TEXT' },
+      { name: 'reject_reason', type: 'TEXT' },
+      { name: 'created_at', type: 'TEXT' },
+      { name: 'published_at', type: 'TEXT' },
+    ]
+  },
+];
+
+// from → to (FK direction)
+const EDGES = [
+  { from: 'accounts',           to: 'employees',        label: 'employee_id' },
+  { from: 'employee_contracts', to: 'employees',        label: 'employee_id' },
+  { from: 'salaries',           to: 'employees',        label: 'employee_id' },
+  { from: 'shifts',             to: 'employees',        label: 'employee_id' },
+  { from: 'leave_requests',     to: 'employees',        label: 'employee_id' },
+  { from: 'leave_balances',     to: 'employees',        label: 'employee_id' },
+  { from: 'announcements',      to: 'employees',        label: 'created_by_employee_id' },
+  { from: 'leave_requests',     to: 'accounts',         label: 'approved_by' },
+  { from: 'announcements',      to: 'accounts',         label: 'approved_by' },
+  { from: 'contracts',          to: 'partner_companies',label: 'company_id' },
+  { from: 'shifts',             to: 'partner_companies',label: 'company_id' },
+  { from: 'contracts',          to: 'shift_templates',  label: 'shift_template_id' },
+  { from: 'shifts',             to: 'shift_templates',  label: 'shift_template_id' },
+  { from: 'shifts',             to: 'contracts',        label: 'contract_id' },
+];
+
+// ─────────────────────────────────────────────
+// LAYOUT  (fixed positions — no overlap)
+// ─────────────────────────────────────────────
+//  Column layout (6 cols × N rows), gapped generously
+const COL_W = 230, COL_GAP = 60;
+const ROW_GAP = 40;
+const HEADER_H = 28, ROW_H = 18, PAD = 8;
+
+const tableHeight = (t) => HEADER_H + t.fields.length * ROW_H + PAD * 2;
+const tableWidth = () => COL_W;
+
+// Manual placement: [col, row-order-within-col]
+// col index 0-based, px offsets computed later
+const POSITIONS = {
+  //             col  startY-offset
+  employees:          { cx: 0, cy: 0   },
+  accounts:           { cx: 0, cy: 580 },
+  employee_contracts: { cx: 1, cy: 0   },
+  salaries:           { cx: 2, cy: 0   },
+  shifts:             { cx: 2, cy: 380 },
+  shift_templates:    { cx: 3, cy: 180 },
+  leave_requests:     { cx: 1, cy: 580 },
+  leave_balances:     { cx: 3, cy: 520 },
+  partner_companies:  { cx: 4, cy: 0   },
+  contracts:          { cx: 4, cy: 380 },
+  announcements:      { cx: 5, cy: 0   },
+};
+
+// Convert col index → x pixel
+const COL_X = [0, 1, 2, 3, 4, 5].map(c => 40 + c * (COL_W + COL_GAP));
+const tableX = (id) => COL_X[POSITIONS[id].cx];
+const tableY = (id) => 40 + POSITIONS[id].cy;
+
+// ─────────────────────────────────────────────
+// COLOR THEMES
+// ─────────────────────────────────────────────
+const GROUP_STYLE = {
+  hr:       { header: '#3b82f6', headerText: '#fff', body: '#eff6ff', border: '#93c5fd' },
+  payroll:  { header: '#22c55e', headerText: '#fff', body: '#f0fdf4', border: '#86efac' },
+  partner:  { header: '#eab308', headerText: '#fff', body: '#fefce8', border: '#fde047' },
+  announce: { header: '#ec4899', headerText: '#fff', body: '#fdf2f8', border: '#f9a8d4' },
+};
+
+// ─────────────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────────────
+const svg = document.getElementById('erd');
+const NS = 'http://www.w3.org/2000/svg';
+
+function el(tag, attrs, text) {
+  const e = document.createElementNS(NS, tag);
+  if (attrs) Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v));
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+// ── defs: arrowhead marker
+const defs = el('defs');
+const marker = el('marker', { id: 'arrow', markerWidth: '8', markerHeight: '8', refX: '6', refY: '3', orient: 'auto' });
+const markerPath = el('path', { d: 'M0,0 L0,6 L8,3 z', fill: '#64748b' });
+marker.appendChild(markerPath);
+defs.appendChild(marker);
+svg.appendChild(defs);
+
+// ── draw tables
+const tableMap = {}; // id → {x, y, w, h}
+TABLES.forEach(t => {
+  const x = tableX(t.id), y = tableY(t.id);
+  const w = tableWidth(), h = tableHeight(t);
+  const s = GROUP_STYLE[t.group];
+  tableMap[t.id] = { x, y, w, h };
+
+  const g = el('g', { class: 'table', transform: `translate(${x},${y})` });
+
+  // shadow
+  g.appendChild(el('rect', { x: 3, y: 3, width: w, height: h, rx: 7, fill: '#0001' }));
+  // body
+  g.appendChild(el('rect', { x: 0, y: 0, width: w, height: h, rx: 6, fill: s.body, stroke: s.border, 'stroke-width': 1.5 }));
+  // header
+  g.appendChild(el('rect', { x: 0, y: 0, width: w, height: HEADER_H, rx: 6, fill: s.header }));
+  g.appendChild(el('rect', { x: 0, y: HEADER_H - 6, width: w, height: 6, fill: s.header }));
+  // header text
+  const ht = el('text', { x: w / 2, y: HEADER_H - 8, 'text-anchor': 'middle', fill: s.headerText, 'font-weight': '700', 'font-size': '13', 'font-family': 'Segoe UI,sans-serif' }, t.label);
+  g.appendChild(ht);
+
+  // fields
+  t.fields.forEach((f, i) => {
+    const fy = HEADER_H + PAD + i * ROW_H + ROW_H - 4;
+    // row bg on hover (via CSS would be cleaner but SVG)
+    if (f.pk || f.fk) {
+      g.appendChild(el('rect', { x: 1, y: HEADER_H + PAD + i * ROW_H, width: w - 2, height: ROW_H, fill: f.pk ? '#fef3c7' : '#ede9fe', opacity: '0.6' }));
+    }
+    // badge
+    if (f.pk) {
+      g.appendChild(el('text', { x: 8, y: fy, fill: '#d97706', 'font-size': '9', 'font-weight': '800', 'font-family': 'Segoe UI,sans-serif' }, 'PK'));
+    } else if (f.fk) {
+      g.appendChild(el('text', { x: 8, y: fy, fill: '#7c3aed', 'font-size': '9', 'font-weight': '800', 'font-family': 'Segoe UI,sans-serif' }, 'FK'));
+    }
+    // field name
+    g.appendChild(el('text', { x: 26, y: fy, fill: '#1e293b', 'font-size': '11.5', 'font-family': 'Segoe UI,sans-serif' }, f.name));
+    // type (right aligned)
+    g.appendChild(el('text', { x: w - 8, y: fy, 'text-anchor': 'end', fill: '#94a3b8', 'font-size': '10', 'font-family': 'Segoe UI,sans-serif' }, f.type));
+  });
+
+  svg.appendChild(g);
+});
+
+// ── draw edges
+// For each edge, find best connection sides to reduce crossing
+function getConnectPoint(id, side) {
+  const t = tableMap[id];
+  if (side === 'left')   return { x: t.x,          y: t.y + t.h / 2 };
+  if (side === 'right')  return { x: t.x + t.w,    y: t.y + t.h / 2 };
+  if (side === 'top')    return { x: t.x + t.w / 2, y: t.y };
+  if (side === 'bottom') return { x: t.x + t.w / 2, y: t.y + t.h };
+}
+
+function bestSides(fromId, toId) {
+  const f = tableMap[fromId], t = tableMap[toId];
+  const fcx = f.x + f.w / 2, fcy = f.y + f.h / 2;
+  const tcx = t.x + t.w / 2, tcy = t.y + t.h / 2;
+  const dx = tcx - fcx, dy = tcy - fcy;
+  // prefer horizontal if columns differ significantly
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return dx > 0 ? ['right', 'left'] : ['left', 'right'];
+  } else {
+    return dy > 0 ? ['bottom', 'top'] : ['top', 'bottom'];
+  }
+}
+
+// edge offset registry to avoid perfect overlap
+const edgeRegistry = {};
+function edgeKey(a, b) { return [a,b].sort().join('|'); }
+
+const edgeGroup = el('g', { id: 'edges' });
+svg.insertBefore(edgeGroup, svg.firstChild.nextSibling); // behind tables
+
+EDGES.forEach(edge => {
+  const [fSide, tSide] = bestSides(edge.from, edge.to);
+  const fp = getConnectPoint(edge.from, fSide);
+  const tp = getConnectPoint(edge.to, tSide);
+
+  const key = edgeKey(edge.from, edge.to);
+  edgeRegistry[key] = (edgeRegistry[key] || 0) + 1;
+  const offset = (edgeRegistry[key] - 1) * 12;
+
+  // cubic bezier control points
+  const dx = tp.x - fp.x, dy = tp.y - fp.y;
+  let cx1, cy1, cx2, cy2;
+  if (fSide === 'right' || fSide === 'left') {
+    const bend = Math.max(50, Math.abs(dx) * 0.4);
+    cx1 = fp.x + (fSide === 'right' ? bend : -bend);
+    cy1 = fp.y + offset;
+    cx2 = tp.x + (tSide === 'right' ? bend : -bend);
+    cy2 = tp.y + offset;
+  } else {
+    const bend = Math.max(50, Math.abs(dy) * 0.4);
+    cx1 = fp.x + offset;
+    cy1 = fp.y + (fSide === 'bottom' ? bend : -bend);
+    cx2 = tp.x + offset;
+    cy2 = tp.y + (tSide === 'bottom' ? bend : -bend);
+  }
+
+  const d = `M ${fp.x} ${fp.y} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${tp.x} ${tp.y}`;
+
+  // outline for readability
+  edgeGroup.appendChild(el('path', { d, fill: 'none', stroke: '#fff', 'stroke-width': '4', 'stroke-linecap': 'round' }));
+  // actual line
+  edgeGroup.appendChild(el('path', { d, fill: 'none', stroke: '#64748b', 'stroke-width': '1.8',
+    'stroke-dasharray': edge.to === 'employees' ? 'none' : 'none',
+    'marker-end': 'url(#arrow)', 'stroke-linecap': 'round' }));
+
+  // label at midpoint
+  const mx = (fp.x + tp.x) / 2, my = (fp.y + tp.y) / 2;
+  const lbg = el('rect', { x: mx - 28, y: my - 9, width: 56, height: 13, rx: 3, fill: '#f8fafc', opacity: '0.85' });
+  const ltxt = el('text', { x: mx, y: my + 1, 'text-anchor': 'middle', fill: '#475569', 'font-size': '9.5', 'font-family': 'Segoe UI,sans-serif' }, edge.label);
+  edgeGroup.appendChild(lbg);
+  edgeGroup.appendChild(ltxt);
+});
+
+// ── resize SVG to fit content
+const allX = TABLES.map(t => tableX(t.id) + tableWidth());
+const allY = TABLES.map(t => tableY(t.id) + tableHeight(t));
+const svgW = Math.max(...allX) + 60;
+const svgH = Math.max(...allY) + 60;
+svg.setAttribute('width', svgW);
+svg.setAttribute('height', svgH);
+
+// ─────────────────────────────────────────────
+// PAN + ZOOM
+// ─────────────────────────────────────────────
+const wrap = document.getElementById('canvas-wrap');
+let scale = 1, panX = 0, panY = 0, dragging = false, lastX = 0, lastY = 0;
+
+function applyTransform() {
+  svg.style.transform = `translate(${panX}px,${panY}px) scale(${scale})`;
+  svg.style.transformOrigin = '0 0';
+}
+
+wrap.addEventListener('wheel', e => {
+  e.preventDefault();
+  const delta = e.deltaY > 0 ? 0.9 : 1.1;
+  scale = Math.min(2, Math.max(0.3, scale * delta));
+  applyTransform();
+}, { passive: false });
+
+wrap.addEventListener('mousedown', e => { dragging = true; lastX = e.clientX; lastY = e.clientY; });
+window.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  panX += e.clientX - lastX; panY += e.clientY - lastY;
+  lastX = e.clientX; lastY = e.clientY;
+  applyTransform();
+});
+window.addEventListener('mouseup', () => dragging = false);
+</script>
+</body>
+</html>

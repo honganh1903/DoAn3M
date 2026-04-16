@@ -83,6 +83,24 @@ const parsePagination = (query) => {
   return { page, limit, offset };
 };
 const getSalaryConfigForEmployee = (employeeId, employeeType) => {
+  // Ưu tiên 1: Lấy từ hợp đồng lao động hiện tại (active)
+  const activeContract = db.prepare(`
+    SELECT base_salary, allowance
+    FROM employee_contracts
+    WHERE employee_id = ? AND status = 'active'
+    ORDER BY start_date DESC
+    LIMIT 1
+  `).get(employeeId);
+
+  if (activeContract) {
+    return {
+      base_salary: Number(activeContract.base_salary || 0),
+      bonus: Number(activeContract.allowance || 0),
+      source: 'employee_contract'
+    };
+  }
+
+  // Ưu tiên 2: Lấy từ bản lương gần nhất
   const latest = db.prepare(`
     SELECT base_salary, bonus
     FROM salaries
@@ -95,6 +113,7 @@ const getSalaryConfigForEmployee = (employeeId, employeeType) => {
     return { base_salary: Number(latest.base_salary || 0), bonus: Number(latest.bonus || 0), source: 'latest_salary_record' };
   }
 
+  // Ưu tiên 3: Giá trị mặc định theo loại nhân viên
   if (employeeType === 'hr') {
     return { base_salary: 11000000, bonus: 500000, source: 'default_hr' };
   }

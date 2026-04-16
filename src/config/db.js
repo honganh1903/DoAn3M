@@ -164,6 +164,31 @@ db.exec(`
   CREATE UNIQUE INDEX IF NOT EXISTS idx_salaries_employee_month
   ON salaries(employee_id, month);
 
+  CREATE TABLE IF NOT EXISTS employee_contracts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    employee_id INTEGER NOT NULL,
+    contract_code TEXT NOT NULL UNIQUE,
+    contract_type TEXT NOT NULL DEFAULT 'definite',
+    position TEXT,
+    department TEXT,
+    base_salary REAL DEFAULT 0,
+    allowance REAL DEFAULT 0,
+    start_date TEXT NOT NULL,
+    end_date TEXT,
+    signing_date TEXT,
+    signed_by TEXT,
+    status TEXT DEFAULT 'active',
+    note TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (employee_id) REFERENCES employees(id)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_employee_contracts_employee
+  ON employee_contracts(employee_id);
+
+  CREATE INDEX IF NOT EXISTS idx_employee_contracts_status
+  ON employee_contracts(status);
+
   CREATE INDEX IF NOT EXISTS idx_contracts_company
   ON contracts(company_id);
 

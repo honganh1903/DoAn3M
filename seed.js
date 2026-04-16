@@ -249,6 +249,23 @@ const shiftTemplates = [
   { code: 'NIGHT', name: 'Ca Dem', check_in_time: '22:00', check_out_time: '06:00', work_pattern: 'daily', note: 'Ca dem mac dinh' }
 ];
 
+const employeeContractSeeds = [
+  { employee_key: 'guard_01', contract_code: 'HDLD-NV001', contract_type: 'indefinite', position: 'Nhan vien bao ve', department: 'Gate A', base_salary: 8050000, allowance: 500000, start_date: '2024-01-10', end_date: null, signing_date: '2024-01-08', signed_by: 'Giam doc Nguyen Van A', status: 'active', note: 'Hop dong khong xac dinh thoi han' },
+  { employee_key: 'guard_02', contract_code: 'HDLD-NV002', contract_type: 'definite', position: 'Nhan vien bao ve', department: 'Warehouse', base_salary: 8300000, allowance: 400000, start_date: '2024-03-01', end_date: '2026-02-28', signing_date: '2024-02-25', signed_by: 'Giam doc Nguyen Van A', status: 'active', note: 'Hop dong 2 nam' },
+  { employee_key: 'guard_03', contract_code: 'HDLD-NV003', contract_type: 'indefinite', position: 'Nhan vien bao ve', department: 'Factory C', base_salary: 8550000, allowance: 500000, start_date: '2023-12-15', end_date: null, signing_date: '2023-12-10', signed_by: 'Giam doc Nguyen Van A', status: 'active', note: 'Hop dong khong thoi han sau thu viec' },
+  { employee_key: 'guard_04', contract_code: 'HDLD-NV004', contract_type: 'definite', position: 'Nhan vien bao ve', department: 'Dock 1', base_salary: 8800000, allowance: 400000, start_date: '2024-02-20', end_date: '2026-02-19', signing_date: '2024-02-18', signed_by: 'Giam doc Nguyen Van A', status: 'active', note: 'Hop dong 2 nam' },
+  { employee_key: 'guard_05', contract_code: 'HDLD-NV005', contract_type: 'definite', position: 'Nhan vien bao ve', department: 'Distribution', base_salary: 9050000, allowance: 500000, start_date: '2024-04-10', end_date: '2026-04-09', signing_date: '2024-04-08', signed_by: 'Giam doc Nguyen Van A', status: 'active', note: 'Hop dong 2 nam' },
+  { employee_key: 'guard_06', contract_code: 'HDLD-NV006', contract_type: 'indefinite', position: 'Nhan vien bao ve', department: 'Office', base_salary: 9300000, allowance: 500000, start_date: '2023-10-25', end_date: null, signing_date: '2023-10-20', signed_by: 'Giam doc Nguyen Van A', status: 'active', note: 'Hop dong khong thoi han' },
+  { employee_key: 'guard_07', contract_code: 'HDLD-NV007', contract_type: 'probation', position: 'Nhan vien bao ve', department: 'Gate B', base_salary: 7000000, allowance: 200000, start_date: '2024-05-02', end_date: '2024-07-01', signing_date: '2024-05-01', signed_by: 'Giam doc Nguyen Van A', status: 'expired', note: 'Hop dong thu viec 2 thang - da het han' },
+  { employee_key: 'guard_07', contract_code: 'HDLD-NV007-B', contract_type: 'definite', position: 'Nhan vien bao ve', department: 'Gate B', base_salary: 9550000, allowance: 450000, start_date: '2024-07-02', end_date: '2026-07-01', signing_date: '2024-07-01', signed_by: 'Giam doc Nguyen Van A', status: 'active', note: 'Hop dong chinh thuc sau thu viec' },
+  { employee_key: 'guard_08', contract_code: 'HDLD-NV008', contract_type: 'definite', position: 'Nhan vien bao ve', department: 'Transit', base_salary: 9800000, allowance: 400000, start_date: '2024-05-12', end_date: '2026-05-11', signing_date: '2024-05-10', signed_by: 'Giam doc Nguyen Van A', status: 'active', note: 'Hop dong 2 nam' },
+  { employee_key: 'guard_09', contract_code: 'HDLD-NV009', contract_type: 'probation', position: 'Nhan vien bao ve', department: 'Yard', base_salary: 7000000, allowance: 200000, start_date: '2024-06-01', end_date: '2024-08-01', signing_date: '2024-05-30', signed_by: 'Giam doc Nguyen Van A', status: 'expired', note: 'Hop dong thu viec - da het han' },
+  { employee_key: 'guard_09', contract_code: 'HDLD-NV009-B', contract_type: 'definite', position: 'Nhan vien bao ve', department: 'Yard', base_salary: 10050000, allowance: 500000, start_date: '2024-08-02', end_date: '2026-08-01', signing_date: '2024-08-01', signed_by: 'Giam doc Nguyen Van A', status: 'active', note: 'Hop dong 2 nam sau thu viec' },
+  { employee_key: 'guard_10', contract_code: 'HDLD-NV010', contract_type: 'definite', position: 'Nhan vien bao ve', department: 'Central Hub', base_salary: 10300000, allowance: 500000, start_date: '2024-06-18', end_date: '2026-06-17', signing_date: '2024-06-15', signed_by: 'Giam doc Nguyen Van A', status: 'active', note: 'Hop dong 2 nam' },
+  { employee_key: 'hr_01', contract_code: 'HDLD-HR001', contract_type: 'indefinite', position: 'Nhan vien nhan su', department: 'Human Resources', base_salary: 12000000, allowance: 1000000, start_date: '2024-01-01', end_date: null, signing_date: '2023-12-28', signed_by: 'Giam doc Nguyen Van A', status: 'active', note: 'Hop dong khong thoi han - HR' },
+  { employee_key: 'hr_02', contract_code: 'HDLD-HR002', contract_type: 'definite', position: 'Nhan vien nhan su', department: 'Human Resources', base_salary: 11000000, allowance: 800000, start_date: '2024-02-10', end_date: '2026-02-09', signing_date: '2024-02-08', signed_by: 'Giam doc Nguyen Van A', status: 'active', note: 'Hop dong 2 nam - HR' }
+];
+
 const leaveDates = {
   now_02: getNthWeekdayInMonth(nowMonth, 2),
   now_04: getNthWeekdayInMonth(nowMonth, 4),
@@ -293,6 +310,7 @@ const contractByCode = db.prepare('SELECT id FROM contracts WHERE contract_code 
 const shiftTemplateByCode = db.prepare('SELECT id FROM shift_templates WHERE code = ?');
 const leaveExists = db.prepare('SELECT id FROM leave_requests WHERE employee_id = ? AND leave_date = ? AND duration_type = ?');
 const announcementExists = db.prepare('SELECT id FROM announcements WHERE created_by_employee_id = ? AND title = ?');
+const employeeContractByCode = db.prepare('SELECT id FROM employee_contracts WHERE contract_code = ?');
 
 const insertEmployee = db.prepare(`
   INSERT INTO employees (
@@ -403,6 +421,21 @@ const upsertLeaveBalance = db.prepare(`
     used_days = excluded.used_days,
     remaining_days = excluded.remaining_days,
     updated_at = datetime('now')
+`);
+
+const insertEmployeeContract = db.prepare(`
+  INSERT INTO employee_contracts (
+    employee_id, contract_code, contract_type, position, department,
+    base_salary, allowance, start_date, end_date, signing_date, signed_by, status, note
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`);
+
+const updateEmployeeContract = db.prepare(`
+  UPDATE employee_contracts
+  SET employee_id = ?, contract_type = ?, position = ?, department = ?,
+      base_salary = ?, allowance = ?, start_date = ?, end_date = ?, signing_date = ?,
+      signed_by = ?, status = ?, note = ?
+  WHERE contract_code = ?
 `);
 
 const seed = db.transaction(() => {
@@ -583,6 +616,30 @@ const seed = db.transaction(() => {
       contract.note
     );
     contractIds[contract.contract_code] = Number(result.lastInsertRowid);
+  });
+
+  // --- Seed Employee Contracts (Hop dong lao dong) ---
+  employeeContractSeeds.forEach((ec) => {
+    const employeeId = employeeIds[ec.employee_key];
+    if (!employeeId) {
+      throw new Error(`Employee not found for employee contract: ${ec.employee_key}`);
+    }
+
+    const existing = employeeContractByCode.get(ec.contract_code);
+    if (existing) {
+      updateEmployeeContract.run(
+        employeeId, ec.contract_type, ec.position, ec.department,
+        ec.base_salary, ec.allowance, ec.start_date, ec.end_date || null,
+        ec.signing_date || null, ec.signed_by || null, ec.status, ec.note || null,
+        ec.contract_code
+      );
+    } else {
+      insertEmployeeContract.run(
+        employeeId, ec.contract_code, ec.contract_type, ec.position, ec.department,
+        ec.base_salary, ec.allowance, ec.start_date, ec.end_date || null,
+        ec.signing_date || null, ec.signed_by || null, ec.status, ec.note || null
+      );
+    }
   });
 
   const salaryProfiles = {};
@@ -838,7 +895,7 @@ try {
   console.log('Ops account: opslead / ops123456');
   console.log('User samples: user1..user10 / user123');
   console.log(`Seed month snapshot: current=${nowMonth}, prev=${prevMonth}, prev2=${prev2Month}`);
-  console.log('Seeded tables: employees, accounts, partner_companies, contracts, shift_templates, shifts, salaries, leave_requests, leave_balances, announcements');
+  console.log('Seeded tables: employees, accounts, partner_companies, contracts, employee_contracts, shift_templates, shifts, salaries, leave_requests, leave_balances, announcements');
 } catch (err) {
   console.error('Seed failed:', err.message);
   process.exit(1);

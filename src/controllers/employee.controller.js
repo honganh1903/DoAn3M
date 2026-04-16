@@ -77,13 +77,21 @@ const getById = (req, res) => {
              id_card, social_insurance_no, employee_type, phone, address, department, hire_date, status, created_at
       FROM employees
       WHERE id = ?
-    `).get(employeeId);
-
-    if (!employee) {
+    `).get(employeeId);    if (!employee) {
       return res.status(404).json({ success: false, message: 'Employee not found' });
     }
 
-    return res.json({ success: true, data: employee });
+    // Lấy hợp đồng lao động hiện tại (active) của nhân viên
+    const activeContract = db.prepare(`
+      SELECT id, contract_code, contract_type, position, department,
+             base_salary, allowance, start_date, end_date, signing_date, signed_by, status, note, created_at
+      FROM employee_contracts
+      WHERE employee_id = ? AND status = 'active'
+      ORDER BY start_date DESC
+      LIMIT 1
+    `).get(employeeId);
+
+    return res.json({ success: true, data: { ...employee, active_contract: activeContract || null } });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }

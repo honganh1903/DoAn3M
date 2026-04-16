@@ -1,0 +1,193 @@
+// ============================================================
+// DoAn3M - Database Relationship Diagram (DBML)
+// Copy toàn bộ nội dung này vào https://dbdiagram.io
+// để tạo sơ đồ quan hệ trực quan
+// ============================================================
+
+Table employees {
+  id INTEGER [pk, increment]
+  first_name TEXT
+  last_name TEXT
+  full_name TEXT
+  avatar_url TEXT
+  birth_date TEXT
+  gender TEXT
+  id_card TEXT [unique]
+  social_insurance_no TEXT [unique]
+  employee_type TEXT [default: 'guard', note: 'guard | hr']
+  phone TEXT
+  address TEXT
+  department TEXT
+  hire_date TEXT
+  status TEXT [default: 'active', note: 'active | resigned']
+  created_at TEXT
+}
+
+Table accounts {
+  id INTEGER [pk, increment]
+  username TEXT [unique, not null]
+  password TEXT [not null]
+  role TEXT [not null, default: 'user', note: 'admin | employee | user']
+  employee_id INTEGER [ref: - employees.id, note: 'nullable, 1-to-1']
+  avatar_url TEXT
+  can_manage_salary INTEGER [default: 0]
+  created_at TEXT
+  is_active INTEGER [default: 1]
+}
+
+Table employee_contracts {
+  id INTEGER [pk, increment]
+  employee_id INTEGER [not null, ref: > employees.id]
+  contract_code TEXT [unique, not null]
+  contract_type TEXT [not null, default: 'definite', note: 'probation | definite | indefinite']
+  position TEXT
+  department TEXT
+  base_salary REAL [default: 0]
+  allowance REAL [default: 0]
+  start_date TEXT [not null]
+  end_date TEXT
+  signing_date TEXT
+  signed_by TEXT
+  status TEXT [default: 'active', note: 'active | expired | terminated | pending']
+  note TEXT
+  created_at TEXT
+}
+
+Table salaries {
+  id INTEGER [pk, increment]
+  employee_id INTEGER [not null, ref: > employees.id]
+  month TEXT [not null, note: 'YYYY-MM format']
+  base_salary REAL [default: 0]
+  bonus REAL [default: 0]
+  deduction REAL [default: 0]
+  total REAL [default: 0]
+  note TEXT
+  paid INTEGER [default: 0]
+  created_at TEXT
+
+  indexes {
+    (employee_id, month) [unique]
+  }
+}
+
+Table partner_companies {
+  id INTEGER [pk, increment]
+  company_name TEXT [not null]
+  tax_code TEXT [unique]
+  contact_name TEXT
+  contact_phone TEXT
+  contact_email TEXT
+  address TEXT
+  status TEXT [default: 'active']
+  note TEXT
+  created_at TEXT
+}
+
+Table shift_templates {
+  id INTEGER [pk, increment]
+  code TEXT [unique, not null, note: 'DAY | NIGHT']
+  name TEXT [not null]
+  check_in_time TEXT [not null]
+  check_out_time TEXT [not null]
+  work_pattern TEXT [default: 'daily']
+  note TEXT
+  status TEXT [default: 'active']
+  created_at TEXT
+}
+
+Table contracts {
+  id INTEGER [pk, increment]
+  company_id INTEGER [not null, ref: > partner_companies.id]
+  shift_template_id INTEGER [ref: > shift_templates.id]
+  contract_code TEXT [unique, not null]
+  service_name TEXT
+  start_date TEXT
+  end_date TEXT
+  guard_quantity INTEGER [default: 0]
+  monthly_value REAL [default: 0]
+  status TEXT [default: 'active']
+  note TEXT
+  created_at TEXT
+}
+
+Table shifts {
+  id INTEGER [pk, increment]
+  employee_id INTEGER [not null, ref: > employees.id]
+  shift_date TEXT [not null]
+  shift_type TEXT [not null, note: 'day | night']
+  shift_template_id INTEGER [ref: > shift_templates.id]
+  check_in_time_actual TEXT
+  check_out_time_actual TEXT
+  note TEXT
+  company_id INTEGER [ref: > partner_companies.id]
+  contract_id INTEGER [ref: > contracts.id]
+  assignment_role TEXT [default: 'guard']
+  created_at TEXT
+}
+
+Table leave_requests {
+  id INTEGER [pk, increment]
+  employee_id INTEGER [not null, ref: > employees.id]
+  leave_date TEXT [not null]
+  duration_type TEXT [not null, note: 'full_day | half_day_morning | half_day_afternoon']
+  reason TEXT
+  status TEXT [default: 'pending', note: 'pending | approved | rejected']
+  approved_by INTEGER [ref: > accounts.id]
+  approved_at TEXT
+  reject_reason TEXT
+  created_at TEXT
+}
+
+Table leave_balances {
+  id INTEGER [pk, increment]
+  employee_id INTEGER [not null, ref: > employees.id]
+  year INTEGER [not null]
+  total_days REAL [default: 12]
+  used_days REAL [default: 0]
+  remaining_days REAL [default: 12]
+  updated_at TEXT
+
+  indexes {
+    (employee_id, year) [unique]
+  }
+}
+
+Table announcements {
+  id INTEGER [pk, increment]
+  created_by_employee_id INTEGER [not null, ref: > employees.id]
+  title TEXT [not null]
+  content TEXT [not null]
+  status TEXT [default: 'pending', note: 'pending | approved | rejected']
+  approved_by INTEGER [ref: > accounts.id]
+  approved_at TEXT
+  reject_reason TEXT
+  created_at TEXT
+  published_at TEXT
+}
+
+// ============================================================
+// TABLE GROUPS (nhóm logic)
+// ============================================================
+
+TableGroup nhan_su {
+  employees
+  accounts
+  employee_contracts
+}
+
+TableGroup luong_cham_cong {
+  salaries
+  shifts
+  shift_templates
+  leave_requests
+  leave_balances
+}
+
+TableGroup doi_tac_hop_dong {
+  partner_companies
+  contracts
+}
+
+TableGroup thong_bao {
+  announcements
+}
