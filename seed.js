@@ -888,6 +888,12 @@ const seed = db.transaction(() => {
 });
 
 try {
+  // Skip seed nếu đã có data (tránh chạy lại mỗi lần restart trên Railway)
+  const existingCount = db.prepare('SELECT COUNT(*) as cnt FROM employees').get();
+  if (existingCount && existingCount.cnt > 0) {
+    console.log(`[Seed] Đã có ${existingCount.cnt} nhân viên trong DB — bỏ qua seed.`);
+    process.exit(0);
+  }
   seed();
   console.log('Seed data created successfully');
   console.log('Admin account: admin / admin123');
