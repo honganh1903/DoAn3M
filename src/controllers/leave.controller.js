@@ -93,7 +93,7 @@ const create = (req, res) => {
     const requestedMonth = String(leave_date).slice(0, 7);
     const currentMonth = toYearMonth(new Date());
     if (requestedMonth !== currentMonth) {
-      return res.status(400).json({ success: false, message: `leave request must be in current month (${currentMonth})` });
+      return res.status(400).json({ success: false, message: `Đơn nghỉ phép phải thuộc tháng hiện tại (${currentMonth})` });
     }
 
     const duplicated = db.prepare(`
@@ -168,7 +168,7 @@ const approve = (req, res) => {
 
     const currentMonth = toYearMonth(new Date());
     if (String(existing.leave_date).slice(0, 7) !== currentMonth) {
-      return res.status(400).json({ success: false, message: `leave request must be in current month (${currentMonth})` });
+      return res.status(400).json({ success: false, message: `Đơn nghỉ phép phải thuộc tháng hiện tại (${currentMonth})` });
     }
 
     const leaveDays = getDurationDays(existing.duration_type);

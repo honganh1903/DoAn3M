@@ -183,8 +183,7 @@ const create = (req, res) => {
     const normalizedType = contract_type || 'definite';
     if (!VALID_CONTRACT_TYPES.includes(normalizedType)) {
       return res.status(400).json({
-        success: false,
-        message: `contract_type must be one of: ${VALID_CONTRACT_TYPES.join(', ')}`
+        success: false,        message: `contract_type phải là một trong: ${VALID_CONTRACT_TYPES.join(', ')}`
       });
     }
 
@@ -206,8 +205,7 @@ const create = (req, res) => {
     const normalizedStatus = status || 'active';
     if (!VALID_STATUSES.includes(normalizedStatus)) {
       return res.status(400).json({
-        success: false,
-        message: `status must be one of: ${VALID_STATUSES.join(', ')}`
+        success: false,        message: `status phải là một trong: ${VALID_STATUSES.join(', ')}`
       });
     }
 
@@ -311,8 +309,7 @@ const update = (req, res) => {
     // Validate contract_type
     if (!VALID_CONTRACT_TYPES.includes(payload.contract_type)) {
       return res.status(400).json({
-        success: false,
-        message: `contract_type must be one of: ${VALID_CONTRACT_TYPES.join(', ')}`
+        success: false,        message: `contract_type phải là một trong: ${VALID_CONTRACT_TYPES.join(', ')}`
       });
     }
 
@@ -333,8 +330,7 @@ const update = (req, res) => {
     // Validate status
     if (!VALID_STATUSES.includes(payload.status)) {
       return res.status(400).json({
-        success: false,
-        message: `status must be one of: ${VALID_STATUSES.join(', ')}`
+        success: false,        message: `status phải là một trong: ${VALID_STATUSES.join(', ')}`
       });
     }
 

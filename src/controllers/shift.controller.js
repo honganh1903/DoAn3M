@@ -784,7 +784,7 @@ const create = (req, res) => {
     if (Object.prototype.hasOwnProperty.call(req.body, 'contract_id')) {
       return res.status(400).json({
         success: false,
-        message: 'contract_id is not allowed in this endpoint. Use /assignments/contracts/:contractId/members'
+        message: 'contract_id không được phép ở endpoint này. Dùng /assignments/contracts/:contractId/members'
       });
     }
 
@@ -957,7 +957,7 @@ const createRange = (req, res) => {
     if (Object.prototype.hasOwnProperty.call(req.body, 'contract_id')) {
       return res.status(400).json({
         success: false,
-        message: 'contract_id is not allowed in this endpoint. Use /assignments/contracts/:contractId/members'
+        message: 'contract_id không được phép ở endpoint này. Dùng /assignments/contracts/:contractId/members'
       });
     }
 
@@ -1288,7 +1288,7 @@ const syncContractMembers = (req, res) => {
     if (Number(contract.guard_quantity) > 0 && uniqueEmployeeIds.length > Number(contract.guard_quantity)) {
       return res.status(400).json({
         success: false,
-        message: `Selected employees exceed contract required quantity (${contract.guard_quantity})`
+        message: `Số nhân viên được chọn vượt quá số lượng bảo vệ yêu cầu của hợp đồng (${contract.guard_quantity})`
       });
     }
 
@@ -1304,7 +1304,7 @@ const syncContractMembers = (req, res) => {
     if (addedNewMembers.length > 0 && String(contract.start_date) < today) {
       return res.status(400).json({
         success: false,
-        message: `Cannot add new members after contract start date (${contract.start_date}). New members: ${addedNewMembers.join(', ')}`
+        message: `Không thể thêm thành viên mới sau ngày bắt đầu hợp đồng (${contract.start_date}). Thành viên mới: ${addedNewMembers.join(', ')}`
       });
     }
 
