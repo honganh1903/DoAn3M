@@ -29,11 +29,11 @@ const uploadEmployeeAvatar = async (req, res) => {
     const employee = db.prepare('SELECT id, avatar_url FROM employees WHERE id = ?').get(employeeId);
 
     if (!employee) {
-      return res.status(404).json({ success: false, message: 'Employee not found' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy nhân viên' });
     }
 
     if (!req.file) {
-      return res.status(400).json({ success: false, message: 'image file is required (field name: image)' });
+      return res.status(400).json({ success: false, message: 'Vui lòng tải lên file ảnh (tên field: image)' });
     }
 
     const uploaded = await uploadBufferToCloudinary(req.file.buffer, 'security-company/employees');
@@ -44,7 +44,7 @@ const uploadEmployeeAvatar = async (req, res) => {
       .prepare('SELECT id, first_name, last_name, avatar_url, employee_type, department, status FROM employees WHERE id = ?')
       .get(employeeId);
 
-    return res.json({ success: true, data: updated, message: 'Employee avatar uploaded successfully' });
+    return res.json({ success: true, data: updated, message: 'Cập nhật ảnh đại diện nhân viên thành công' });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }

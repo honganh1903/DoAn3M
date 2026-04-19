@@ -36,7 +36,7 @@ const getOrCreateLeaveBalance = (employeeId, year) => {
 const getMyBalance = (req, res) => {
   try {
     if (!req.user.employee_id) {
-      return res.status(400).json({ success: false, message: 'This account is not linked to an employee' });
+      return res.status(400).json({ success: false, message: 'Tài khoản này chưa liên kết với nhân viên' });
     }
 
     const year = Number(req.query.year) || new Date().getFullYear();
@@ -53,7 +53,7 @@ const getMyBalance = (req, res) => {
 const getMyRequests = (req, res) => {
   try {
     if (!req.user.employee_id) {
-      return res.status(400).json({ success: false, message: 'This account is not linked to an employee' });
+      return res.status(400).json({ success: false, message: 'Tài khoản này chưa liên kết với nhân viên' });
     }
 
     const data = db.prepare(`
@@ -73,21 +73,21 @@ const getMyRequests = (req, res) => {
 const create = (req, res) => {
   try {
     if (!req.user.employee_id) {
-      return res.status(400).json({ success: false, message: 'This account is not linked to an employee' });
+      return res.status(400).json({ success: false, message: 'Tài khoản này chưa liên kết với nhân viên' });
     }
 
     const { leave_date, duration_type = 'full_day', reason } = req.body;
 
     if (!leave_date) {
-      return res.status(400).json({ success: false, message: 'leave_date is required' });
+      return res.status(400).json({ success: false, message: 'leave_date là bắt buộc' });
     }
 
     if (!DATE_RE.test(String(leave_date))) {
-      return res.status(400).json({ success: false, message: 'leave_date must be in YYYY-MM-DD format' });
+      return res.status(400).json({ success: false, message: 'leave_date phải theo định dạng YYYY-MM-DD' });
     }
 
     if (!VALID_DURATION_TYPES.includes(duration_type)) {
-      return res.status(400).json({ success: false, message: 'duration_type must be full_day, half_day_morning, or half_day_afternoon' });
+      return res.status(400).json({ success: false, message: 'duration_type phải là full_day, half_day_morning hoặc half_day_afternoon' });
     }
 
     const requestedMonth = String(leave_date).slice(0, 7);
@@ -106,7 +106,7 @@ const create = (req, res) => {
     `).get(req.user.employee_id, leave_date);
 
     if (duplicated) {
-      return res.status(400).json({ success: false, message: 'Leave request for this date already exists' });
+      return res.status(400).json({ success: false, message: 'Đơn nghỉ phép cho ngày này đã tồn tại' });
     }
 
     const result = db.prepare(`
@@ -115,7 +115,7 @@ const create = (req, res) => {
     `).run(req.user.employee_id, leave_date, duration_type, reason || null);
 
     const row = db.prepare('SELECT * FROM leave_requests WHERE id = ?').get(result.lastInsertRowid);
-    return res.status(201).json({ success: true, data: row, message: 'Leave request submitted successfully' });
+    return res.status(201).json({ success: true, data: row, message: 'Đơn nghỉ phép đã được gửi thành công' });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
@@ -159,11 +159,11 @@ const approve = (req, res) => {
     const existing = db.prepare('SELECT * FROM leave_requests WHERE id = ?').get(id);
 
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Leave request not found' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy đơn nghỉ phép' });
     }
 
     if (existing.status !== 'pending') {
-      return res.status(400).json({ success: false, message: 'Only pending leave requests can be approved' });
+      return res.status(400).json({ success: false, message: 'Chỉ có thể phê duyệt đơn đang chờ duyệt' });
     }
 
     const currentMonth = toYearMonth(new Date());
@@ -173,7 +173,7 @@ const approve = (req, res) => {
 
     const leaveDays = getDurationDays(existing.duration_type);
     if (leaveDays <= 0) {
-      return res.status(400).json({ success: false, message: 'Invalid duration_type' });
+      return res.status(400).json({ success: false, message: 'duration_type không hợp lệ' });
     }
 
     const leaveYear = Number(String(existing.leave_date).slice(0, 4));
@@ -203,7 +203,7 @@ const approve = (req, res) => {
 
     const row = db.prepare('SELECT * FROM leave_requests WHERE id = ?').get(id);
     const balance = db.prepare('SELECT * FROM leave_balances WHERE employee_id = ? AND year = ?').get(existing.employee_id, leaveYear);
-    return res.json({ success: true, data: { request: row, balance }, message: 'Leave request approved' });
+    return res.json({ success: true, data: { request: row, balance }, message: 'Đơn nghỉ phép đã được phê duyệt' });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
@@ -216,11 +216,11 @@ const reject = (req, res) => {
 
     const existing = db.prepare('SELECT * FROM leave_requests WHERE id = ?').get(id);
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Leave request not found' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy đơn nghỉ phép' });
     }
 
     if (existing.status !== 'pending') {
-      return res.status(400).json({ success: false, message: 'Only pending leave requests can be rejected' });
+      return res.status(400).json({ success: false, message: 'Chỉ có thể từ chối đơn đang chờ duyệt' });
     }
 
     db.prepare(`
@@ -230,7 +230,7 @@ const reject = (req, res) => {
     `).run(req.user.id, reject_reason || null, id);
 
     const row = db.prepare('SELECT * FROM leave_requests WHERE id = ?').get(id);
-    return res.json({ success: true, data: row, message: 'Leave request rejected' });
+    return res.json({ success: true, data: row, message: 'Đơn nghỉ phép đã bị từ chối' });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }

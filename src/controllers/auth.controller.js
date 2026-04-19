@@ -23,7 +23,7 @@ const login = (req, res) => {
     const { username, password } = req.body;
 
     if (!username || !password) {
-      return res.status(400).json({ success: false, message: 'Please enter username and password' });
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập tên đăng nhập và mật khẩu' });
     }
 
     const account = db
@@ -37,12 +37,12 @@ const login = (req, res) => {
       .get(username);
 
     if (!account || account.is_active !== 1) {
-      return res.status(401).json({ success: false, message: 'Invalid username or password' });
+      return res.status(401).json({ success: false, message: 'Tên đăng nhập hoặc mật khẩu không đúng' });
     }
 
     const isMatch = bcrypt.compareSync(password, account.password);
     if (!isMatch) {
-      return res.status(401).json({ success: false, message: 'Invalid username or password' });
+      return res.status(401).json({ success: false, message: 'Tên đăng nhập hoặc mật khẩu không đúng' });
     }
 
     const token = createToken(account);
@@ -60,7 +60,7 @@ const login = (req, res) => {
           can_manage_salary: account.can_manage_salary === 1
         }
       },
-      message: 'Login successful'
+      message: 'Đăng nhập thành công'
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
@@ -91,24 +91,24 @@ const changePassword = (req, res) => {
     const { current_password, new_password } = req.body;
 
     if (!current_password || !new_password) {
-      return res.status(400).json({ success: false, message: 'Please provide current and new passwords' });
+      return res.status(400).json({ success: false, message: 'Vui lòng cung cấp mật khẩu hiện tại và mật khẩu mới' });
     }
 
     if (new_password.length < 6) {
-      return res.status(400).json({ success: false, message: 'New password must be at least 6 characters' });
+      return res.status(400).json({ success: false, message: 'Mật khẩu mới phải có ít nhất 6 ký tự' });
     }
 
     const account = db.prepare('SELECT * FROM accounts WHERE id = ?').get(req.user.id);
     const isMatch = bcrypt.compareSync(current_password, account.password);
 
     if (!isMatch) {
-      return res.status(400).json({ success: false, message: 'Current password is incorrect' });
+      return res.status(400).json({ success: false, message: 'Mật khẩu hiện tại không đúng' });
     }
 
     const hashedPassword = bcrypt.hashSync(new_password, 10);
     db.prepare('UPDATE accounts SET password = ? WHERE id = ?').run(hashedPassword, req.user.id);
 
-    return res.json({ success: true, message: 'Password changed successfully' });
+    return res.json({ success: true, message: 'Đổi mật khẩu thành công' });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }

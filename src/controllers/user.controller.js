@@ -18,7 +18,7 @@ const ensureAnnualLeaveBalance = (employeeId, year = new Date().getFullYear()) =
 const getMe = (req, res) => {
   try {
     if (!req.user.employee_id) {
-      return res.status(400).json({ success: false, message: 'This account is not linked to an employee' });
+      return res.status(400).json({ success: false, message: 'Tài khoản này chưa liên kết với nhân viên' });
     }
 
     const profile = db.prepare(`
@@ -39,7 +39,7 @@ const getMe = (req, res) => {
 const getMySalaries = (req, res) => {
   try {
     if (!req.user.employee_id) {
-      return res.status(400).json({ success: false, message: 'This account is not linked to an employee' });
+      return res.status(400).json({ success: false, message: 'Tài khoản này chưa liên kết với nhân viên' });
     }
 
     const salaries = db
@@ -55,7 +55,7 @@ const getMySalaries = (req, res) => {
 const getMyShifts = (req, res) => {
   try {
     if (!req.user.employee_id) {
-      return res.status(400).json({ success: false, message: 'This account is not linked to an employee' });
+      return res.status(400).json({ success: false, message: 'Tài khoản này chưa liên kết với nhân viên' });
     }
 
     const shifts = db
@@ -101,20 +101,20 @@ const create = (req, res) => {
     const { username, password, role = 'user', employee_id } = req.body;
 
     if (!username || !password) {
-      return res.status(400).json({ success: false, message: 'username and password are required' });
+      return res.status(400).json({ success: false, message: 'Tên đăng nhập và mật khẩu là bắt buộc' });
     }
 
     if (password.length < 6) {
-      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
+      return res.status(400).json({ success: false, message: 'Mật khẩu phải có ít nhất 6 ký tự' });
     }
 
     const normalizedRole = role || 'user';
     if (!VALID_ACCOUNT_ROLES.includes(normalizedRole)) {
-      return res.status(400).json({ success: false, message: 'role must be user, employee, or admin' });
+      return res.status(400).json({ success: false, message: 'Vai trò phải là user, employee hoặc admin' });
     }
 
     if (req.user.role === 'employee' && normalizedRole !== 'user') {
-      return res.status(403).json({ success: false, message: 'HR can only create user accounts' });
+      return res.status(403).json({ success: false, message: 'HR chỉ được tạo tài khoản loại user' });
     }
 
     const canManageSalary = req.user.role === 'admin' ? (req.body.can_manage_salary ? 1 : 0) : 0;
@@ -122,12 +122,12 @@ const create = (req, res) => {
     if (employee_id) {
       const employee = db.prepare('SELECT id FROM employees WHERE id = ?').get(employee_id);
       if (!employee) {
-        return res.status(404).json({ success: false, message: 'Employee does not exist' });
+        return res.status(404).json({ success: false, message: 'Nhân viên không tồn tại' });
       }
 
       const occupied = db.prepare('SELECT id, username FROM accounts WHERE employee_id = ?').get(employee_id);
       if (occupied) {
-        return res.status(409).json({ success: false, message: 'This employee already has an account' });
+        return res.status(409).json({ success: false, message: 'Nhân viên này đã có tài khoản' });
       }
     }
 
@@ -142,10 +142,10 @@ const create = (req, res) => {
 
     ensureAnnualLeaveBalance(user.employee_id);
 
-    return res.status(201).json({ success: true, data: user, message: 'Account created successfully' });
+    return res.status(201).json({ success: true, data: user, message: 'Tạo tài khoản thành công' });
   } catch (err) {
     if (String(err.message || '').includes('UNIQUE constraint failed: accounts.employee_id')) {
-      return res.status(409).json({ success: false, message: 'This employee already has an account' });
+      return res.status(409).json({ success: false, message: 'Nhân viên này đã có tài khoản' });
     }
 
     return res.status(500).json({ success: false, message: err.message });
@@ -158,13 +158,13 @@ const update = (req, res) => {
     const existing = db.prepare('SELECT * FROM accounts WHERE id = ?').get(accountId);
 
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Account not found' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản' });
     }
 
     if (Object.prototype.hasOwnProperty.call(req.body, 'username') || Object.prototype.hasOwnProperty.call(req.body, 'employee_id')) {
       return res.status(400).json({
         success: false,
-        message: 'Only role, is_active, and can_manage_salary can be updated'
+        message: 'Chỉ có thể cập nhật role, is_active và can_manage_salary'
       });
     }
 
@@ -180,11 +180,11 @@ const update = (req, res) => {
     };
 
     if (!VALID_ACCOUNT_ROLES.includes(payload.role)) {
-      return res.status(400).json({ success: false, message: 'role must be user, employee, or admin' });
+      return res.status(400).json({ success: false, message: 'Vai trò phải là user, employee hoặc admin' });
     }
 
     if (req.user.role === 'employee' && (existing.role !== 'user' || payload.role !== 'user')) {
-      return res.status(403).json({ success: false, message: 'HR can only update user accounts' });
+      return res.status(403).json({ success: false, message: 'HR chỉ được cập nhật tài khoản loại user' });
     }
 
     db.prepare(`
@@ -197,7 +197,7 @@ const update = (req, res) => {
       .prepare('SELECT id, username, role, employee_id, can_manage_salary, created_at, is_active FROM accounts WHERE id = ?')
       .get(accountId);
 
-    return res.json({ success: true, data: user, message: 'Account updated successfully' });
+    return res.json({ success: true, data: user, message: 'Cập nhật tài khoản thành công' });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
@@ -209,22 +209,22 @@ const resetPassword = (req, res) => {
     const { new_password } = req.body;
 
     if (!new_password || new_password.length < 6) {
-      return res.status(400).json({ success: false, message: 'new_password must be at least 6 characters' });
+      return res.status(400).json({ success: false, message: 'Mật khẩu mới phải có ít nhất 6 ký tự' });
     }
 
     const existing = db.prepare('SELECT id, role FROM accounts WHERE id = ?').get(accountId);
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Account not found' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản' });
     }
 
     if (req.user.role === 'employee' && existing.role !== 'user') {
-      return res.status(403).json({ success: false, message: 'HR can only reset passwords for user accounts' });
+      return res.status(403).json({ success: false, message: 'HR chỉ được đặt lại mật khẩu cho tài khoản loại user' });
     }
 
     const hashedPassword = bcrypt.hashSync(new_password, 10);
     db.prepare('UPDATE accounts SET password = ? WHERE id = ?').run(hashedPassword, accountId);
 
-    return res.json({ success: true, message: 'Password reset successfully' });
+    return res.json({ success: true, message: 'Đặt lại mật khẩu thành công' });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
@@ -236,16 +236,16 @@ const remove = (req, res) => {
     const existing = db.prepare('SELECT id, role FROM accounts WHERE id = ?').get(accountId);
 
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Account not found' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản' });
     }
 
     if (req.user.role === 'employee' && existing.role !== 'user') {
-      return res.status(403).json({ success: false, message: 'HR can only disable user accounts' });
+      return res.status(403).json({ success: false, message: 'HR chỉ được vô hiệu hóa tài khoản loại user' });
     }
 
     db.prepare('UPDATE accounts SET is_active = 0 WHERE id = ?').run(accountId);
 
-    return res.json({ success: true, message: 'Account disabled successfully' });
+    return res.json({ success: true, message: 'Vô hiệu hóa tài khoản thành công' });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }

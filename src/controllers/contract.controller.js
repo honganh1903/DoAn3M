@@ -46,17 +46,17 @@ const create = (req, res) => {
     } = req.body;
 
     if (!company_id || !contract_code || !shift_template_id) {
-      return res.status(400).json({ success: false, message: 'company_id, contract_code, and shift_template_id are required' });
+      return res.status(400).json({ success: false, message: 'Thiếu thông tin bắt buộc: company_id, contract_code, shift_template_id' });
     }
 
     const company = db.prepare('SELECT id FROM partner_companies WHERE id = ?').get(company_id);
     if (!company) {
-      return res.status(404).json({ success: false, message: 'Partner company does not exist' });
+      return res.status(404).json({ success: false, message: 'Công ty đối tác không tồn tại' });
     }
 
     const template = db.prepare("SELECT id FROM shift_templates WHERE id = ? AND status = 'active'").get(shift_template_id);
     if (!template) {
-      return res.status(400).json({ success: false, message: 'Shift template does not exist or inactive' });
+      return res.status(400).json({ success: false, message: 'Mẫu ca không tồn tại hoặc đã ngừng hoạt động' });
     }
 
     const result = db.prepare(`
@@ -75,7 +75,7 @@ const create = (req, res) => {
       note || null
     );
 
-    return res.status(201).json({ success: true, data: db.prepare('SELECT * FROM contracts WHERE id = ?').get(result.lastInsertRowid), message: 'Contract created successfully' });
+    return res.status(201).json({ success: true, data: db.prepare('SELECT * FROM contracts WHERE id = ?').get(result.lastInsertRowid), message: 'Tạo hợp đồng dịch vụ thành công' });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
@@ -87,7 +87,7 @@ const update = (req, res) => {
     const existing = db.prepare('SELECT * FROM contracts WHERE id = ?').get(contractId);
 
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Contract not found' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy hợp đồng' });
     }
 
     const payload = {
@@ -105,12 +105,12 @@ const update = (req, res) => {
 
     const company = db.prepare('SELECT id FROM partner_companies WHERE id = ?').get(payload.company_id);
     if (!company) {
-      return res.status(404).json({ success: false, message: 'Partner company does not exist' });
+      return res.status(404).json({ success: false, message: 'Công ty đối tác không tồn tại' });
     }
 
     const template = db.prepare("SELECT id FROM shift_templates WHERE id = ? AND status = 'active'").get(payload.shift_template_id);
     if (!template) {
-      return res.status(400).json({ success: false, message: 'Shift template does not exist or inactive' });
+      return res.status(400).json({ success: false, message: 'Mẫu ca không tồn tại hoặc đã ngừng hoạt động' });
     }
 
     db.prepare(`
@@ -132,7 +132,7 @@ const update = (req, res) => {
       contractId
     );
 
-    return res.json({ success: true, data: db.prepare('SELECT * FROM contracts WHERE id = ?').get(contractId), message: 'Contract updated successfully' });
+    return res.json({ success: true, data: db.prepare('SELECT * FROM contracts WHERE id = ?').get(contractId), message: 'Cập nhật hợp đồng dịch vụ thành công' });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
@@ -143,10 +143,10 @@ const remove = (req, res) => {
     const result = db.prepare('UPDATE contracts SET status = ? WHERE id = ?').run('inactive', req.params.id);
 
     if (result.changes === 0) {
-      return res.status(404).json({ success: false, message: 'Contract not found' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy hợp đồng' });
     }
 
-    return res.json({ success: true, message: 'Contract marked as inactive' });
+    return res.json({ success: true, message: 'Đã đánh dấu hợp đồng ngừng hoạt động' });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }

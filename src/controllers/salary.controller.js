@@ -6,7 +6,7 @@ const MONTH_RE = /^\d{4}-\d{2}$/;
 const shouldExportExcel = (req) => String(req.query.export || '').trim().toLowerCase() === 'excel';
 const sendExcel = (res, fileName, rows) => {
   const workbook = xlsx.utils.book_new();
-  const safeRows = Array.isArray(rows) && rows.length > 0 ? rows : [{ message: 'No data' }];
+  const safeRows = Array.isArray(rows) && rows.length > 0 ? rows : [{ message: 'Không có dữ liệu' }];
   const worksheet = xlsx.utils.json_to_sheet(safeRows);
   xlsx.utils.book_append_sheet(workbook, worksheet, 'salary');
   const buffer = xlsx.write(workbook, { type: 'buffer', bookType: 'xlsx' });
@@ -55,7 +55,7 @@ const parseSalaryRangeFilters = (query) => {
   const exactMonth = query.month ? String(query.month) : null;
   if (exactMonth) {
     if (!MONTH_RE.test(exactMonth)) {
-      return { error: 'month must be in YYYY-MM format' };
+      return { error: 'month phải theo định dạng YYYY-MM' };
     }
     return { month: exactMonth, monthFrom: null, monthTo: null };
   }
@@ -197,7 +197,7 @@ const buildAttendanceReport = (employeeId, month, includeShiftDetails) => {
     return {
       month,
       valid_month: false,
-      message: 'month must be in YYYY-MM format'
+      message: 'month phải theo định dạng YYYY-MM'
     };
   }
 
@@ -451,7 +451,7 @@ const getAll = (req, res) => {
 const getMine = (req, res) => {
   try {
     if (!req.user.employee_id) {
-      return res.status(400).json({ success: false, message: 'This account is not linked to an employee' });
+      return res.status(400).json({ success: false, message: 'Tài khoản này chưa liên kết với nhân viên' });
     }
 
     const includeShiftDetails = String(req.query.include_shift_details || '').toLowerCase() === 'true';
@@ -525,7 +525,7 @@ const getById = (req, res) => {
       .get(req.params.id);
 
     if (!salary) {
-      return res.status(404).json({ success: false, message: 'Salary record not found' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy bản lương' });
     }
     const data = withAttendance(salary, includeShiftDetails);
     if (shouldExportExcel(req)) {
@@ -542,23 +542,23 @@ const create = (req, res) => {
     const { employee_id, month, note } = req.body;
 
     if (!employee_id || !month) {
-      return res.status(400).json({ success: false, message: 'Missing required fields: employee_id, month' });
+      return res.status(400).json({ success: false, message: 'Thiếu thông tin bắt buộc: employee_id, month' });
     }
 
     if (!isValidPayrollMonth(month)) {
-      return res.status(400).json({ success: false, message: 'month must be in YYYY-MM format and not in the future' });
+      return res.status(400).json({ success: false, message: 'month phải theo định dạng YYYY-MM và không được là tháng tương lai' });
     }
 
     const employee = db.prepare('SELECT id, employee_type FROM employees WHERE id = ?').get(employee_id);
     if (!employee) {
-      return res.status(404).json({ success: false, message: 'Employee does not exist' });
+      return res.status(404).json({ success: false, message: 'Nhân viên không tồn tại' });
     }
 
     const duplicated = db.prepare('SELECT id FROM salaries WHERE employee_id = ? AND month = ?').get(employee_id, month);
     if (duplicated) {
       return res.status(409).json({
         success: false,
-        message: 'Salary record already exists for this employee and month'
+        message: 'Bản lương của nhân viên này trong tháng đã tồn tại'
       });
     }
 
@@ -593,13 +593,13 @@ const create = (req, res) => {
           final_deduction: finalDeduction
         }
       },
-      message: 'Salary record created successfully'
+      message: 'Tạo bản lương thành công'
     });
   } catch (err) {
     if (String(err.message || '').includes('UNIQUE constraint failed: salaries.employee_id, salaries.month')) {
       return res.status(409).json({
         success: false,
-        message: 'Salary record already exists for this employee and month'
+        message: 'Bản lương của nhân viên này trong tháng đã tồn tại'
       });
     }
     return res.status(500).json({ success: false, message: err.message });
@@ -612,7 +612,7 @@ const update = (req, res) => {
     const existing = db.prepare('SELECT * FROM salaries WHERE id = ?').get(salaryId);
 
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Salary record not found' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy bản lương' });
     }
 
     const payload = {
@@ -626,7 +626,7 @@ const update = (req, res) => {
     };
 
     if (!isValidPayrollMonth(payload.month)) {
-      return res.status(400).json({ success: false, message: 'month must be in YYYY-MM format and not in the future' });
+      return res.status(400).json({ success: false, message: 'month phải theo định dạng YYYY-MM và không được là tháng tương lai' });
     }
 
     const duplicated = db.prepare(`
@@ -638,7 +638,7 @@ const update = (req, res) => {
     if (duplicated) {
       return res.status(409).json({
         success: false,
-        message: 'Salary record already exists for this employee and month'
+        message: 'Bản lương của nhân viên này trong tháng đã tồn tại'
       });
     }
 
@@ -678,13 +678,13 @@ const update = (req, res) => {
           final_deduction: finalDeduction
         }
       },
-      message: 'Salary record updated successfully'
+      message: 'Cập nhật bản lương thành công'
     });
   } catch (err) {
     if (String(err.message || '').includes('UNIQUE constraint failed: salaries.employee_id, salaries.month')) {
       return res.status(409).json({
         success: false,
-        message: 'Salary record already exists for this employee and month'
+        message: 'Bản lương của nhân viên này trong tháng đã tồn tại'
       });
     }
     return res.status(500).json({ success: false, message: err.message });
@@ -697,11 +697,11 @@ const markAsPaid = (req, res) => {
     const existing = db.prepare('SELECT * FROM salaries WHERE id = ?').get(salaryId);
 
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Salary record not found' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy bản lương' });
     }
 
     db.prepare('UPDATE salaries SET paid = 1 WHERE id = ?').run(salaryId);
-    return res.json({ success: true, message: 'Salary marked as paid' });
+    return res.json({ success: true, message: 'Đã đánh dấu đã thanh toán lương' });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
@@ -712,10 +712,10 @@ const remove = (req, res) => {
     const result = db.prepare('DELETE FROM salaries WHERE id = ?').run(req.params.id);
 
     if (result.changes === 0) {
-      return res.status(404).json({ success: false, message: 'Salary record not found' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy bản lương' });
     }
 
-    return res.json({ success: true, message: 'Salary record deleted successfully' });
+    return res.json({ success: true, message: 'Xóa bản lương thành công' });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }

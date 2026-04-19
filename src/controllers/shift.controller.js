@@ -55,7 +55,7 @@ const validateAssignableRange = (dateFrom, dateTo) => {
   }
 
   if (!DATE_RE.test(String(dateTo))) {
-    return 'date_to must be in YYYY-MM-DD format';
+    return 'date_to phải theo định dạng YYYY-MM-DD';
   }
 
   const currentYear = getCurrentYear();
@@ -65,7 +65,7 @@ const validateAssignableRange = (dateFrom, dateTo) => {
   }
 
   if (String(dateFrom) > String(dateTo)) {
-    return 'date_from must be less than or equal to date_to';
+    return 'date_from phải nhỏ hơn hoặc bằng date_to';
   }
 
   return null;
@@ -118,7 +118,7 @@ const normalizeDateTimeInput = (value) => {
     return { ok: true, value: `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}` };
   }
 
-  return { ok: false, message: 'Datetime must be YYYY-MM-DD HH:mm[:ss] or DD/MM/YYYY HH:mm[:ss]' };
+  return { ok: false, message: 'Ngày giờ phải theo định dạng YYYY-MM-DD HH:mm[:ss] hoặc DD/MM/YYYY HH:mm[:ss]' };
 };
 const getFirstNonEmpty = (row, keys) => {
   for (const key of keys) {
@@ -144,7 +144,7 @@ const sendExcel = (res, fileName, sheets) => {
 
   sheets.forEach((sheet) => {
     const rows = Array.isArray(sheet.rows) ? sheet.rows : [];
-    const safeRows = rows.length > 0 ? rows : [{ message: 'No data' }];
+    const safeRows = rows.length > 0 ? rows : [{ message: 'Không có dữ liệu' }];
     const worksheet = xlsx.utils.json_to_sheet(safeRows);
     xlsx.utils.book_append_sheet(workbook, worksheet, sheet.name || 'Sheet1');
   });
@@ -172,7 +172,7 @@ const getTemplateById = (req, res) => {
     const template = db.prepare('SELECT * FROM shift_templates WHERE id = ?').get(req.params.id);
 
     if (!template) {
-      return res.status(404).json({ success: false, message: 'Shift template not found' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy mẫu ca' });
     }
 
     if (shouldExportExcel(req)) {
@@ -191,15 +191,15 @@ const createTemplate = (req, res) => {
     const normalizedCode = String(code || '').trim().toUpperCase();
 
     if (!normalizedCode || !name || !check_in_time || !check_out_time) {
-      return res.status(400).json({ success: false, message: 'Missing required fields: code, name, check_in_time, check_out_time' });
+      return res.status(400).json({ success: false, message: 'Thiếu thông tin bắt buộc: code, name, check_in_time, check_out_time' });
     }
 
     if (!VALID_SHIFT_CODES.includes(normalizedCode)) {
-      return res.status(400).json({ success: false, message: 'code must be DAY or NIGHT' });
+      return res.status(400).json({ success: false, message: 'code phải là DAY hoặc NIGHT' });
     }
 
     if (!VALID_WORK_PATTERNS.includes(work_pattern)) {
-      return res.status(400).json({ success: false, message: 'work_pattern must be daily' });
+      return res.status(400).json({ success: false, message: 'work_pattern phải là daily' });
     }
 
     const existingByCode = db.prepare('SELECT id FROM shift_templates WHERE code = ?').get(normalizedCode);
@@ -213,7 +213,7 @@ const createTemplate = (req, res) => {
     `).run(normalizedCode, name, check_in_time, check_out_time, work_pattern, note || null);
 
     const template = db.prepare('SELECT * FROM shift_templates WHERE id = ?').get(result.lastInsertRowid);
-    return res.status(201).json({ success: true, data: template, message: 'Shift template created successfully' });
+    return res.status(201).json({ success: true, data: template, message: 'Tạo mẫu ca thành công' });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
@@ -225,7 +225,7 @@ const updateTemplate = (req, res) => {
     const existing = db.prepare('SELECT * FROM shift_templates WHERE id = ?').get(id);
 
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Shift template not found' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy mẫu ca' });
     }
 
     const payload = {
@@ -239,11 +239,11 @@ const updateTemplate = (req, res) => {
     };
 
     if (!VALID_SHIFT_CODES.includes(payload.code)) {
-      return res.status(400).json({ success: false, message: 'code must be DAY or NIGHT' });
+      return res.status(400).json({ success: false, message: 'code phải là DAY hoặc NIGHT' });
     }
 
     if (!VALID_WORK_PATTERNS.includes(payload.work_pattern)) {
-      return res.status(400).json({ success: false, message: 'work_pattern must be daily' });
+      return res.status(400).json({ success: false, message: 'work_pattern phải là daily' });
     }
 
     const duplicateCode = db.prepare('SELECT id FROM shift_templates WHERE code = ? AND id != ?').get(payload.code, id);
@@ -274,7 +274,7 @@ const updateTemplate = (req, res) => {
       WHERE shift_template_id = ?
     `).run(getShiftTypeFromTemplate(template), id);
 
-    return res.json({ success: true, data: template, message: 'Shift template updated successfully' });
+    return res.json({ success: true, data: template, message: 'Cập nhật mẫu ca thành công' });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
@@ -286,16 +286,16 @@ const removeTemplate = (req, res) => {
     const inUse = db.prepare('SELECT id FROM shifts WHERE shift_template_id = ? LIMIT 1').get(id);
 
     if (inUse) {
-      return res.status(400).json({ success: false, message: 'Cannot delete shift template that is currently assigned' });
+      return res.status(400).json({ success: false, message: 'Không thể xóa mẫu ca đang được sử dụng' });
     }
 
     const result = db.prepare('UPDATE shift_templates SET status = ? WHERE id = ?').run('inactive', id);
 
     if (result.changes === 0) {
-      return res.status(404).json({ success: false, message: 'Shift template not found' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy mẫu ca' });
     }
 
-    return res.json({ success: true, message: 'Shift template marked as inactive' });
+    return res.json({ success: true, message: 'Đã đánh dấu mẫu ca ngừng hoạt động' });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
@@ -315,15 +315,15 @@ const getAll = (req, res) => {
     } = req.query;
 
     if (date_from && !DATE_RE.test(String(date_from))) {
-      return res.status(400).json({ success: false, message: 'date_from must be in YYYY-MM-DD format' });
+      return res.status(400).json({ success: false, message: 'date_from phải theo định dạng YYYY-MM-DD' });
     }
 
     if (date_to && !DATE_RE.test(String(date_to))) {
-      return res.status(400).json({ success: false, message: 'date_to must be in YYYY-MM-DD format' });
+      return res.status(400).json({ success: false, message: 'date_to phải theo định dạng YYYY-MM-DD' });
     }
 
     if (date_from && date_to && String(date_from) > String(date_to)) {
-      return res.status(400).json({ success: false, message: 'date_from must be less than or equal to date_to' });
+      return res.status(400).json({ success: false, message: 'date_from phải nhỏ hơn hoặc bằng date_to' });
     }
 
     let query = `
@@ -392,20 +392,20 @@ const getAll = (req, res) => {
 const getMine = (req, res) => {
   try {
     if (!req.user.employee_id) {
-      return res.status(400).json({ success: false, message: 'This account is not linked to an employee' });
+      return res.status(400).json({ success: false, message: 'Tài khoản này chưa liên kết với nhân viên' });
     }
 
     const { date_from, date_to } = req.query;
     if (date_from && !DATE_RE.test(String(date_from))) {
-      return res.status(400).json({ success: false, message: 'date_from must be in YYYY-MM-DD format' });
+      return res.status(400).json({ success: false, message: 'date_from phải theo định dạng YYYY-MM-DD' });
     }
 
     if (date_to && !DATE_RE.test(String(date_to))) {
-      return res.status(400).json({ success: false, message: 'date_to must be in YYYY-MM-DD format' });
+      return res.status(400).json({ success: false, message: 'date_to phải theo định dạng YYYY-MM-DD' });
     }
 
     if (date_from && date_to && String(date_from) > String(date_to)) {
-      return res.status(400).json({ success: false, message: 'date_from must be less than or equal to date_to' });
+      return res.status(400).json({ success: false, message: 'date_from phải nhỏ hơn hoặc bằng date_to' });
     }
 
     let query = `
@@ -457,18 +457,18 @@ const validateAssignment = (
   const skipCapacityCheck = Boolean(options.skipCapacityCheck);
   const employee = getEmployee(employeeId);
   if (!employee) {
-    return 'Employee does not exist';
+    return 'Nhân viên không tồn tại';
   }
 
   const template = db.prepare("SELECT id, code FROM shift_templates WHERE id = ? AND status = 'active'").get(shiftTemplateId);
   if (!template) {
-    return 'Shift template does not exist or inactive';
+    return 'Mẫu ca không tồn tại hoặc đã ngừng hoạt động';
   }
 
   if (companyId) {
     const company = db.prepare('SELECT id FROM partner_companies WHERE id = ?').get(companyId);
     if (!company) {
-      return 'Partner company does not exist';
+      return 'Công ty đối tác không tồn tại';
     }
   }
 
@@ -558,7 +558,7 @@ const getAssignmentCandidates = (req, res) => {
     if (!['all', 'available', 'busy', 'fully_assigned'].includes(requestedStatus)) {
       return res.status(400).json({
         success: false,
-        message: 'assignment_status must be all, available, busy, or fully_assigned'
+        message: 'assignment_status phải là all, available, busy hoặc fully_assigned'
       });
     }
 
@@ -567,7 +567,7 @@ const getAssignmentCandidates = (req, res) => {
     if (month) {
       const monthText = String(month);
       if (!/^\d{4}-\d{2}$/.test(monthText)) {
-        return res.status(400).json({ success: false, message: 'month must be in YYYY-MM format' });
+        return res.status(400).json({ success: false, message: 'month phải theo định dạng YYYY-MM' });
       }
       const monthRange = getMonthRange(monthText);
       rangeFrom = monthRange.date_from;
@@ -578,17 +578,17 @@ const getAssignmentCandidates = (req, res) => {
       if (!rangeFrom || !rangeTo) {
         return res.status(400).json({
           success: false,
-          message: 'Provide month=YYYY-MM or date=YYYY-MM-DD or date_from/date_to'
+          message: 'Cung cấp month=YYYY-MM hoặc date=YYYY-MM-DD hoặc date_from/date_to'
         });
       }
     }
 
     if (!DATE_RE.test(String(rangeFrom)) || !DATE_RE.test(String(rangeTo))) {
-      return res.status(400).json({ success: false, message: 'date_from/date_to must be in YYYY-MM-DD format' });
+      return res.status(400).json({ success: false, message: 'date_from/date_to phải theo định dạng YYYY-MM-DD' });
     }
 
     if (String(rangeFrom) > String(rangeTo)) {
-      return res.status(400).json({ success: false, message: 'date_from must be less than or equal to date_to' });
+      return res.status(400).json({ success: false, message: 'date_from phải nhỏ hơn hoặc bằng date_to' });
     }
 
     const rows = db.prepare(`
@@ -710,27 +710,27 @@ const getByEmployee = (req, res) => {
     const { date, month, date_from, date_to } = req.query;
 
     if (!employeeId) {
-      return res.status(400).json({ success: false, message: 'employeeId is required' });
+      return res.status(400).json({ success: false, message: 'employeeId là bắt buộc' });
     }
 
     if (date && !DATE_RE.test(String(date))) {
-      return res.status(400).json({ success: false, message: 'date must be in YYYY-MM-DD format' });
+      return res.status(400).json({ success: false, message: 'date phải theo định dạng YYYY-MM-DD' });
     }
 
     if (month && !/^\d{4}-\d{2}$/.test(String(month))) {
-      return res.status(400).json({ success: false, message: 'month must be in YYYY-MM format' });
+      return res.status(400).json({ success: false, message: 'month phải theo định dạng YYYY-MM' });
     }
 
     if (date_from && !DATE_RE.test(String(date_from))) {
-      return res.status(400).json({ success: false, message: 'date_from must be in YYYY-MM-DD format' });
+      return res.status(400).json({ success: false, message: 'date_from phải theo định dạng YYYY-MM-DD' });
     }
 
     if (date_to && !DATE_RE.test(String(date_to))) {
-      return res.status(400).json({ success: false, message: 'date_to must be in YYYY-MM-DD format' });
+      return res.status(400).json({ success: false, message: 'date_to phải theo định dạng YYYY-MM-DD' });
     }
 
     if (date_from && date_to && String(date_from) > String(date_to)) {
-      return res.status(400).json({ success: false, message: 'date_from must be less than or equal to date_to' });
+      return res.status(400).json({ success: false, message: 'date_from phải nhỏ hơn hoặc bằng date_to' });
     }
 
     let query = `
@@ -789,7 +789,7 @@ const create = (req, res) => {
     }
 
     if (!employee_id || !shift_date || !shift_template_id) {
-      return res.status(400).json({ success: false, message: 'Missing required fields: employee_id, shift_date, shift_template_id' });
+      return res.status(400).json({ success: false, message: 'Thiếu thông tin bắt buộc: employee_id, shift_date, shift_template_id' });
     }
 
     const rangePolicyMessage = validateAssignableDate(shift_date);
@@ -838,7 +838,7 @@ const create = (req, res) => {
       );
 
     const shift = db.prepare('SELECT * FROM shifts WHERE id = ?').get(result.lastInsertRowid);
-    return res.status(201).json({ success: true, data: shift, message: 'Shift created successfully' });
+    return res.status(201).json({ success: true, data: shift, message: 'Tạo ca làm việc thành công' });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
@@ -850,7 +850,7 @@ const update = (req, res) => {
     const existing = db.prepare('SELECT * FROM shifts WHERE id = ?').get(shiftId);
 
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Shift not found' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy ca làm việc' });
     }
 
     const payload = {
@@ -866,7 +866,7 @@ const update = (req, res) => {
     };
 
     if (!payload.shift_template_id) {
-      return res.status(400).json({ success: false, message: 'shift_template_id is required' });
+      return res.status(400).json({ success: false, message: 'shift_template_id là bắt buộc' });
     }
 
     const rangePolicyMessage = validateAssignableDate(payload.shift_date);
@@ -922,7 +922,7 @@ const update = (req, res) => {
     );
 
     const shift = db.prepare('SELECT * FROM shifts WHERE id = ?').get(shiftId);
-    return res.json({ success: true, data: shift, message: 'Shift updated successfully' });
+    return res.json({ success: true, data: shift, message: 'Cập nhật ca làm việc thành công' });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
@@ -933,10 +933,10 @@ const remove = (req, res) => {
     const result = db.prepare('DELETE FROM shifts WHERE id = ?').run(req.params.id);
 
     if (result.changes === 0) {
-      return res.status(404).json({ success: false, message: 'Shift not found' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy ca làm việc' });
     }
 
-    return res.json({ success: true, message: 'Shift deleted successfully' });
+    return res.json({ success: true, message: 'Xóa ca làm việc thành công' });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
@@ -964,7 +964,7 @@ const createRange = (req, res) => {
     if (!employee_id || !date_from || !date_to || !shift_template_id) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required fields: employee_id, shift_template_id, date_from, date_to'
+        message: 'Thiếu thông tin bắt buộc: employee_id, shift_template_id, date_from, date_to'
       });
     }
 
@@ -977,7 +977,7 @@ const createRange = (req, res) => {
 
     const template = getTemplate(resolvedShiftTemplateId);
     if (!template) {
-      return res.status(400).json({ success: false, message: 'Shift template does not exist' });
+      return res.status(400).json({ success: false, message: 'Mẫu ca không tồn tại' });
     }
 
     const shiftType = getShiftTypeFromTemplate(template);
@@ -1049,7 +1049,7 @@ const createRange = (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: 'Range assignment processed',
+      message: 'Phân công theo khoảng thời gian đã được xử lý',
       data: {
         employee_id,
         date_from,
@@ -1073,7 +1073,7 @@ const getContractCandidates = (req, res) => {
     const suitableOnly = String(req.query.suitable_only ?? 'true').toLowerCase() !== 'false';
 
     if (!contractId) {
-      return res.status(400).json({ success: false, message: 'contractId is required' });
+      return res.status(400).json({ success: false, message: 'contractId là bắt buộc' });
     }
 
     const contract = db.prepare(`
@@ -1083,27 +1083,27 @@ const getContractCandidates = (req, res) => {
     `).get(contractId);
 
     if (!contract) {
-      return res.status(404).json({ success: false, message: 'Contract not found' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy hợp đồng' });
     }
 
     const shiftTemplateId = contract.shift_template_id || null;
     if (!shiftTemplateId) {
       return res.status(400).json({
         success: false,
-        message: 'Contract has no shift_template_id configured. Please update contract shift first.'
+        message: 'Hợp đồng chưa cấu hình mẫu ca. Vui lòng cập nhật mẫu ca cho hợp đồng trước.'
       });
     }
 
     const template = getTemplate(shiftTemplateId);
     if (!template) {
-      return res.status(400).json({ success: false, message: 'Shift template does not exist' });
+      return res.status(400).json({ success: false, message: 'Mẫu ca không tồn tại' });
     }
 
     const dateFrom = req.query.date_from || contract.start_date;
     const dateTo = req.query.date_to || contract.end_date;
 
     if (!dateFrom || !dateTo || !DATE_RE.test(String(dateFrom)) || !DATE_RE.test(String(dateTo))) {
-      return res.status(400).json({ success: false, message: 'Valid date_from/date_to are required (YYYY-MM-DD)' });
+      return res.status(400).json({ success: false, message: 'date_from/date_to phải hợp lệ theo định dạng YYYY-MM-DD' });
     }
 
     const rangePolicyMessage = validateAssignableRange(String(dateFrom), String(dateTo));
@@ -1238,13 +1238,13 @@ const syncContractMembers = (req, res) => {
     if (!contractId || !Array.isArray(employee_ids)) {
       return res.status(400).json({
         success: false,
-        message: 'contractId and employee_ids (array) are required'
+        message: 'contractId và employee_ids (mảng) là bắt buộc'
       });
     }
 
     const uniqueEmployeeIds = [...new Set(employee_ids.map((item) => Number(item)).filter(Boolean))];
     if (uniqueEmployeeIds.length === 0) {
-      return res.status(400).json({ success: false, message: 'employee_ids must contain at least one valid employee id' });
+      return res.status(400).json({ success: false, message: 'employee_ids phải chứa ít nhất một id nhân viên hợp lệ' });
     }
 
     const contract = db.prepare(`
@@ -1254,20 +1254,20 @@ const syncContractMembers = (req, res) => {
     `).get(contractId);
 
     if (!contract) {
-      return res.status(404).json({ success: false, message: 'Contract not found' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy hợp đồng' });
     }
 
     const resolvedShiftTemplateId = Number(contract.shift_template_id);
     if (!resolvedShiftTemplateId) {
       return res.status(400).json({
         success: false,
-        message: 'Contract has no shift_template_id configured. Please update contract shift first.'
+        message: 'Hợp đồng chưa cấu hình mẫu ca. Vui lòng cập nhật mẫu ca cho hợp đồng trước.'
       });
     }
 
     const template = getTemplate(resolvedShiftTemplateId);
     if (!template) {
-      return res.status(400).json({ success: false, message: 'Shift template does not exist' });
+      return res.status(400).json({ success: false, message: 'Mẫu ca không tồn tại' });
     }
 
     const rangeFrom = contract.start_date;
@@ -1276,7 +1276,7 @@ const syncContractMembers = (req, res) => {
     if (!rangeFrom || !rangeTo || !DATE_RE.test(String(rangeFrom)) || !DATE_RE.test(String(rangeTo))) {
       return res.status(400).json({
         success: false,
-        message: 'Contract must have valid start_date and end_date (YYYY-MM-DD)'
+        message: 'Hợp đồng phải có start_date và end_date hợp lệ (YYYY-MM-DD)'
       });
     }
 
@@ -1406,7 +1406,7 @@ const syncContractMembers = (req, res) => {
 
     return res.json({
       success: true,
-      message: 'Contract members synced and shifts updated automatically',
+      message: 'Đã đồng bộ thành viên hợp đồng và cập nhật ca làm việc tự động',
       data: {
         contract_id: contract.id,
         contract_code: contract.contract_code,
@@ -1431,7 +1431,7 @@ const syncContractMembers = (req, res) => {
 const importCheckinCheckoutExcel = (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ success: false, message: 'Excel file is required (field name: file)' });
+      return res.status(400).json({ success: false, message: 'Vui lòng tải lên file Excel (tên field: file)' });
     }
 
     let xlsx;
@@ -1440,20 +1440,20 @@ const importCheckinCheckoutExcel = (req, res) => {
     } catch (err) {
       return res.status(500).json({
         success: false,
-        message: 'xlsx package is not installed. Run: npm install xlsx'
+        message: 'Thư viện xlsx chưa được cài đặt. Chạy: npm install xlsx'
       });
     }
 
     const workbook = xlsx.read(req.file.buffer, { type: 'buffer', cellDates: true });
     const firstSheetName = workbook.SheetNames[0];
     if (!firstSheetName) {
-      return res.status(400).json({ success: false, message: 'Excel file has no sheets' });
+      return res.status(400).json({ success: false, message: 'File Excel không có sheet nào' });
     }
 
     const worksheet = workbook.Sheets[firstSheetName];
     const rows = xlsx.utils.sheet_to_json(worksheet, { defval: null, raw: false });
     if (!rows.length) {
-      return res.status(400).json({ success: false, message: 'Excel sheet is empty' });
+      return res.status(400).json({ success: false, message: 'Sheet Excel trống' });
     }
 
     const updateById = db.prepare(`
@@ -1564,7 +1564,7 @@ const importCheckinCheckoutExcel = (req, res) => {
 
     return res.json({
       success: true,
-      message: 'Checkin/checkout import processed',
+      message: 'Import chấm công đã được xử lý',
       data: summary
     });
   } catch (err) {

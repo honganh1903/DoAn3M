@@ -20,7 +20,7 @@ const getPublicApproved = (req, res) => {
 const getMyPosts = (req, res) => {
   try {
     if (!req.user.employee_id) {
-      return res.status(400).json({ success: false, message: 'This account is not linked to an employee' });
+      return res.status(400).json({ success: false, message: 'Tài khoản này chưa liên kết với nhân viên' });
     }
 
     const data = db.prepare(`
@@ -40,13 +40,13 @@ const getMyPosts = (req, res) => {
 const create = (req, res) => {
   try {
     if (!req.user.employee_id) {
-      return res.status(400).json({ success: false, message: 'This account is not linked to an employee' });
+      return res.status(400).json({ success: false, message: 'Tài khoản này chưa liên kết với nhân viên' });
     }
 
     const { title, content } = req.body;
 
     if (!title || !content) {
-      return res.status(400).json({ success: false, message: 'title and content are required' });
+      return res.status(400).json({ success: false, message: 'Tiêu đề và nội dung là bắt buộc' });
     }
 
     const result = db.prepare(`
@@ -55,7 +55,7 @@ const create = (req, res) => {
     `).run(req.user.employee_id, title, content);
 
     const row = db.prepare('SELECT * FROM announcements WHERE id = ?').get(result.lastInsertRowid);
-    return res.status(201).json({ success: true, data: row, message: 'Announcement submitted for approval' });
+    return res.status(201).json({ success: true, data: row, message: 'Thông báo đã được gửi chờ phê duyệt' });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
@@ -94,7 +94,7 @@ const approve = (req, res) => {
     const existing = db.prepare('SELECT * FROM announcements WHERE id = ?').get(id);
 
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Announcement not found' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy thông báo' });
     }
 
     db.prepare(`
@@ -104,7 +104,7 @@ const approve = (req, res) => {
     `).run(req.user.id, id);
 
     const row = db.prepare('SELECT * FROM announcements WHERE id = ?').get(id);
-    return res.json({ success: true, data: row, message: 'Announcement approved' });
+    return res.json({ success: true, data: row, message: 'Thông báo đã được phê duyệt' });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
@@ -117,7 +117,7 @@ const reject = (req, res) => {
 
     const existing = db.prepare('SELECT * FROM announcements WHERE id = ?').get(id);
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Announcement not found' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy thông báo' });
     }
 
     db.prepare(`
@@ -127,7 +127,7 @@ const reject = (req, res) => {
     `).run(req.user.id, reject_reason || null, id);
 
     const row = db.prepare('SELECT * FROM announcements WHERE id = ?').get(id);
-    return res.json({ success: true, data: row, message: 'Announcement rejected' });
+    return res.json({ success: true, data: row, message: 'Thông báo đã bị từ chối' });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }

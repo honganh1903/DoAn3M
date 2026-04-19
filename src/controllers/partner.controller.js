@@ -29,7 +29,7 @@ const getById = (req, res) => {
     const company = db.prepare('SELECT * FROM partner_companies WHERE id = ?').get(req.params.id);
 
     if (!company) {
-      return res.status(404).json({ success: false, message: 'Partner company not found' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy công ty đối tác' });
     }
 
     const contracts = db.prepare('SELECT * FROM contracts WHERE company_id = ? ORDER BY id DESC').all(req.params.id);
@@ -45,7 +45,7 @@ const create = (req, res) => {
     const { company_name, tax_code, contact_name, contact_phone, contact_email, address, status, note } = req.body;
 
     if (!company_name) {
-      return res.status(400).json({ success: false, message: 'company_name is required' });
+      return res.status(400).json({ success: false, message: 'company_name là bắt buộc' });
     }
 
     const result = db.prepare(`
@@ -63,7 +63,7 @@ const create = (req, res) => {
     );
 
     const company = db.prepare('SELECT * FROM partner_companies WHERE id = ?').get(result.lastInsertRowid);
-    return res.status(201).json({ success: true, data: company, message: 'Partner company created successfully' });
+    return res.status(201).json({ success: true, data: company, message: 'Tạo công ty đối tác thành công' });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
@@ -75,7 +75,7 @@ const update = (req, res) => {
     const existing = db.prepare('SELECT * FROM partner_companies WHERE id = ?').get(companyId);
 
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Partner company not found' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy công ty đối tác' });
     }
 
     const payload = {
@@ -105,7 +105,7 @@ const update = (req, res) => {
       companyId
     );
 
-    return res.json({ success: true, data: db.prepare('SELECT * FROM partner_companies WHERE id = ?').get(companyId), message: 'Partner company updated successfully' });
+    return res.json({ success: true, data: db.prepare('SELECT * FROM partner_companies WHERE id = ?').get(companyId), message: 'Cập nhật công ty đối tác thành công' });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
@@ -116,10 +116,10 @@ const remove = (req, res) => {
     const result = db.prepare('UPDATE partner_companies SET status = ? WHERE id = ?').run('inactive', req.params.id);
 
     if (result.changes === 0) {
-      return res.status(404).json({ success: false, message: 'Partner company not found' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy công ty đối tác' });
     }
 
-    return res.json({ success: true, message: 'Partner company marked as inactive' });
+    return res.json({ success: true, message: 'Đã đánh dấu công ty đối tác ngừng hoạt động' });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }

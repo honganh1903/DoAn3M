@@ -85,7 +85,7 @@ const getById = (req, res) => {
     `).get(req.params.id);
 
     if (!contract) {
-      return res.status(404).json({ success: false, message: 'Employee contract not found' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy hợp đồng lao động' });
     }
 
     return res.json({ success: true, data: contract });
@@ -104,7 +104,7 @@ const getByEmployeeId = (req, res) => {
 
     const employee = db.prepare('SELECT id FROM employees WHERE id = ?').get(employeeId);
     if (!employee) {
-      return res.status(404).json({ success: false, message: 'Employee not found' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy nhân viên' });
     }
 
     const contracts = db.prepare(`
@@ -128,7 +128,7 @@ const getByEmployeeId = (req, res) => {
 const getMine = (req, res) => {
   try {
     if (!req.user.employee_id) {
-      return res.status(400).json({ success: false, message: 'This account is not linked to an employee' });
+      return res.status(400).json({ success: false, message: 'Tài khoản này chưa liên kết với nhân viên' });
     }
 
     const contracts = db.prepare(`
@@ -169,14 +169,14 @@ const create = (req, res) => {
     if (!employee_id || !contract_code || !start_date) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required fields: employee_id, contract_code, start_date'
+        message: 'Thiếu thông tin bắt buộc: employee_id, contract_code, start_date'
       });
     }
 
     // Validate employee exists
     const employee = db.prepare('SELECT id FROM employees WHERE id = ?').get(employee_id);
     if (!employee) {
-      return res.status(404).json({ success: false, message: 'Employee not found' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy nhân viên' });
     }
 
     // Validate contract_type
@@ -190,16 +190,16 @@ const create = (req, res) => {
 
     // Validate dates
     if (!DATE_RE.test(start_date)) {
-      return res.status(400).json({ success: false, message: 'start_date must be in YYYY-MM-DD format' });
+      return res.status(400).json({ success: false, message: 'start_date phải theo định dạng YYYY-MM-DD' });
     }
     if (end_date && !DATE_RE.test(end_date)) {
-      return res.status(400).json({ success: false, message: 'end_date must be in YYYY-MM-DD format' });
+      return res.status(400).json({ success: false, message: 'end_date phải theo định dạng YYYY-MM-DD' });
     }
     if (end_date && start_date > end_date) {
-      return res.status(400).json({ success: false, message: 'start_date must be before or equal to end_date' });
+      return res.status(400).json({ success: false, message: 'start_date phải nhỏ hơn hoặc bằng end_date' });
     }
     if (signing_date && !DATE_RE.test(signing_date)) {
-      return res.status(400).json({ success: false, message: 'signing_date must be in YYYY-MM-DD format' });
+      return res.status(400).json({ success: false, message: 'signing_date phải theo định dạng YYYY-MM-DD' });
     }
 
     // Validate status
@@ -216,7 +216,7 @@ const create = (req, res) => {
     if (existing) {
       return res.status(409).json({
         success: false,
-        message: 'Contract code already exists'
+        message: 'Mã hợp đồng đã tồn tại'
       });
     }
 
@@ -258,7 +258,7 @@ const create = (req, res) => {
     const response = {
       success: true,
       data: contract,
-      message: 'Employee contract created successfully'
+      message: 'Tạo hợp đồng lao động thành công'
     };
 
     if (activeContract && normalizedStatus === 'active') {
@@ -268,7 +268,7 @@ const create = (req, res) => {
     return res.status(201).json(response);
   } catch (err) {
     if (String(err.message || '').includes('UNIQUE constraint failed: employee_contracts.contract_code')) {
-      return res.status(409).json({ success: false, message: 'Contract code already exists' });
+      return res.status(409).json({ success: false, message: 'Mã hợp đồng đã tồn tại' });
     }
     return res.status(500).json({ success: false, message: err.message });
   }
@@ -283,7 +283,7 @@ const update = (req, res) => {
     const existing = db.prepare('SELECT * FROM employee_contracts WHERE id = ?').get(contractId);
 
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Employee contract not found' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy hợp đồng lao động' });
     }
 
     const payload = {
@@ -305,7 +305,7 @@ const update = (req, res) => {
     // Validate employee exists
     const employee = db.prepare('SELECT id FROM employees WHERE id = ?').get(payload.employee_id);
     if (!employee) {
-      return res.status(404).json({ success: false, message: 'Employee not found' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy nhân viên' });
     }
 
     // Validate contract_type
@@ -318,16 +318,16 @@ const update = (req, res) => {
 
     // Validate dates
     if (!DATE_RE.test(payload.start_date)) {
-      return res.status(400).json({ success: false, message: 'start_date must be in YYYY-MM-DD format' });
+      return res.status(400).json({ success: false, message: 'start_date phải theo định dạng YYYY-MM-DD' });
     }
     if (payload.end_date && !DATE_RE.test(payload.end_date)) {
-      return res.status(400).json({ success: false, message: 'end_date must be in YYYY-MM-DD format' });
+      return res.status(400).json({ success: false, message: 'end_date phải theo định dạng YYYY-MM-DD' });
     }
     if (payload.end_date && payload.start_date > payload.end_date) {
-      return res.status(400).json({ success: false, message: 'start_date must be before or equal to end_date' });
+      return res.status(400).json({ success: false, message: 'start_date phải nhỏ hơn hoặc bằng end_date' });
     }
     if (payload.signing_date && !DATE_RE.test(payload.signing_date)) {
-      return res.status(400).json({ success: false, message: 'signing_date must be in YYYY-MM-DD format' });
+      return res.status(400).json({ success: false, message: 'signing_date phải theo định dạng YYYY-MM-DD' });
     }
 
     // Validate status
@@ -343,7 +343,7 @@ const update = (req, res) => {
       SELECT id FROM employee_contracts WHERE contract_code = ? AND id != ?
     `).get(payload.contract_code, contractId);
     if (duplicated) {
-      return res.status(409).json({ success: false, message: 'Contract code already exists' });
+      return res.status(409).json({ success: false, message: 'Mã hợp đồng đã tồn tại' });
     }
 
     db.prepare(`
@@ -376,10 +376,10 @@ const update = (req, res) => {
       WHERE ec.id = ?
     `).get(contractId);
 
-    return res.json({ success: true, data: contract, message: 'Employee contract updated successfully' });
+    return res.json({ success: true, data: contract, message: 'Cập nhật hợp đồng lao động thành công' });
   } catch (err) {
     if (String(err.message || '').includes('UNIQUE constraint failed: employee_contracts.contract_code')) {
-      return res.status(409).json({ success: false, message: 'Contract code already exists' });
+      return res.status(409).json({ success: false, message: 'Mã hợp đồng đã tồn tại' });
     }
     return res.status(500).json({ success: false, message: err.message });
   }
@@ -395,12 +395,12 @@ const remove = (req, res) => {
     const existing = db.prepare('SELECT id FROM employee_contracts WHERE id = ?').get(contractId);
 
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Employee contract not found' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy hợp đồng lao động' });
     }
 
     db.prepare('UPDATE employee_contracts SET status = ? WHERE id = ?').run('terminated', contractId);
 
-    return res.json({ success: true, message: 'Employee contract terminated successfully' });
+    return res.json({ success: true, message: 'Đã chấm dứt hợp đồng lao động thành công' });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }

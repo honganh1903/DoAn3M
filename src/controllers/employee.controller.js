@@ -69,7 +69,7 @@ const getById = (req, res) => {
     const employeeId = Number(req.params.id);
 
     if (req.user.role === 'user' && req.user.employee_id !== employeeId) {
-      return res.status(403).json({ success: false, message: 'You can only view your own profile' });
+      return res.status(403).json({ success: false, message: 'Bạn chỉ có thể xem hồ sơ của chính mình' });
     }
 
     const employee = db.prepare(`
@@ -78,7 +78,7 @@ const getById = (req, res) => {
       FROM employees
       WHERE id = ?
     `).get(employeeId);    if (!employee) {
-      return res.status(404).json({ success: false, message: 'Employee not found' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy nhân viên' });
     }
 
     // Lấy hợp đồng lao động hiện tại (active) của nhân viên
@@ -116,12 +116,12 @@ const create = (req, res) => {
     } = req.body;
 
     if (!first_name || !last_name) {
-      return res.status(400).json({ success: false, message: 'Missing required fields: first_name, last_name' });
+      return res.status(400).json({ success: false, message: 'Thiếu thông tin bắt buộc: first_name, last_name' });
     }
 
     const normalizedType = employee_type || 'guard';
     if (!['guard', 'hr'].includes(normalizedType)) {
-      return res.status(400).json({ success: false, message: 'employee_type must be guard or hr' });
+      return res.status(400).json({ success: false, message: 'employee_type phải là guard hoặc hr' });
     }
 
     const fullName = `${first_name} ${last_name}`.trim();
@@ -159,7 +159,7 @@ const create = (req, res) => {
 
     ensureAnnualLeaveBalance(employee.id);
 
-    return res.status(201).json({ success: true, data: employee, message: 'Employee created successfully' });
+    return res.status(201).json({ success: true, data: employee, message: 'Tạo nhân viên thành công' });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
@@ -171,7 +171,7 @@ const update = (req, res) => {
     const existing = db.prepare('SELECT * FROM employees WHERE id = ?').get(employeeId);
 
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Employee not found' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy nhân viên' });
     }
 
     const payload = {
@@ -191,11 +191,11 @@ const update = (req, res) => {
     };
 
     if (!payload.first_name || !payload.last_name) {
-      return res.status(400).json({ success: false, message: 'first_name and last_name cannot be empty' });
+      return res.status(400).json({ success: false, message: 'first_name và last_name không được để trống' });
     }
 
     if (!['guard', 'hr'].includes(payload.employee_type)) {
-      return res.status(400).json({ success: false, message: 'employee_type must be guard or hr' });
+      return res.status(400).json({ success: false, message: 'employee_type phải là guard hoặc hr' });
     }
 
     const fullName = `${payload.first_name} ${payload.last_name}`.trim();
@@ -230,7 +230,7 @@ const update = (req, res) => {
       WHERE id = ?
     `).get(employeeId);
 
-    return res.json({ success: true, data: employee, message: 'Employee updated successfully' });
+    return res.json({ success: true, data: employee, message: 'Cập nhật nhân viên thành công' });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
@@ -242,12 +242,12 @@ const remove = (req, res) => {
     const existing = db.prepare('SELECT * FROM employees WHERE id = ?').get(employeeId);
 
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Employee not found' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy nhân viên' });
     }
 
     db.prepare('UPDATE employees SET status = ? WHERE id = ?').run('resigned', employeeId);
 
-    return res.json({ success: true, message: 'Employee status changed to resigned' });
+    return res.json({ success: true, message: 'Đã cập nhật trạng thái nhân viên thành đã nghỉ việc' });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
